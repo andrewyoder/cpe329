@@ -19,6 +19,7 @@ void set_DCO(int freq);
 void delayMs(int n, int freq);
 void delayNs(int n, int freq);
 
+int curFreq;
 
 int main(void) {
     P2->SEL1 &= ~2;         /* configure P2.1 as simple I/O */
@@ -59,7 +60,7 @@ void set_DCO(int freq) {
 void delayMs(int n, int freq) {
 
     int i, j;
-    int numOfCycles = (1.5*(2^freq))*250;
+    int numOfCycles = 750;                  /* (1.5*(2^freq))*250; */
 
     for (j = 0; j < n; j++)
         for (i = numOfCycles; i > 0; i--);      /* Delay 1 ms*/
