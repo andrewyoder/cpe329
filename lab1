@@ -74,7 +74,7 @@ void delayNs(long int n, int freq) {
     if (numOfCycles < 1)
         return;
 
-    for (j = 0; j < numOfCycles; j++);       /* Delay 1 ns*/
+    for (j = 0; j < numOfCycles; j++);       /* Delay n ns*/
 
 }
 
