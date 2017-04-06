@@ -24,6 +24,8 @@ int main(void) {
     P2->SEL1 &= ~2;         /* configure P2.1 as simple I/O */
     P2->SEL0 &= ~2;
     P2->DIR |= 2;           /* P2.1 set as output pin */
+    
+    set_DCO(FREQ_3_MHz);
 
     while (1) {
         P2->OUT |= 2;       /* turn on P2.1 green LED */
@@ -55,7 +57,6 @@ void set_DCO(int freq) {
 
 /* delay milliseconds */
 void delayMs(int n, int freq) {
-    set_DCO(freq);
 
     int i, j;
     int numOfCycles = (1.5*(2^freq))*250;
@@ -67,7 +68,6 @@ void delayMs(int n, int freq) {
 
 /* delay nanoseconds */
 void delayNs(int n, int freq) {
-    set_DCO(freq);
 
     int j;
     float numOfCycles = (1.5*(2^freq))*0.00025;
