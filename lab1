@@ -73,7 +73,7 @@ void delayMs(int n, int freq) {
 void delayNs(long int n, int freq) {
 
     int j;
-    double numOfCycles = (n/10000000)*freq;
+    double numOfCycles = (n/14000000)*freq;
 
     if (numOfCycles < 1)
         return;
