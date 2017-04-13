@@ -15,6 +15,10 @@ void delayMs(int n, int freq);
 void LCD_command(unsigned char command);
 void LCD_data(unsigned char data);
 void LCD_init(void);
+void keypad_init(void);
+char keypad_getkey(void);
+void LED_init(void);
+void LED_set(int value);
 
 
 int main(void) {
@@ -53,6 +57,13 @@ int main(void) {
         LCD_data(‘E’);
         LCD_data(‘Y’);
         delayMs(500, FREQ_12_MHz);
+        
+        
+        
+        
+        
+        
+        
     }
    
 }
@@ -111,4 +122,62 @@ void delayMs(int n, int freq) {
         for (i = freq; i > 0; i--);      /* Delay 1 ms*/
 }
 
+void keypad_init(void)
+{
+    P4->DIR = 0;
+    P4->REN = 0xF0;
+    P4->OUT = 0xF0;
+}
+
+char keypad_getkey(void)
+{
+    int row, col;
+    const char row_select[] = {0x01, 0x02, 0x04, 0x08};
+    P4->DIR |= 0x0F;
+    P4->OUT &= ~0x0F;
+    delayMs(0, FREQ_3_MHz);
+    col = P4->IN & 0xF0;
+    P4->OUT |= 0x0F;
+    P4->DIR &= ~0x0F;
+    if (col == 0xF0)
+        return 0;
+
+    for (row = 0; row < 4; row++)
+    {
+        P4->DIR &= ~0x0F;
+        P4->DIR |= row_select[row];
+        P4->OUT &= ~row_select[row];
+        delayMs(0, FREQ_3_MHz);
+        col = P4->IN & 0xF0;
+        P4->OUT |= row_select[row];
+        if (col != 0xF0)
+            break;
+    }
+
+    P4->OUT |= 0x0F;
+    P4->DIR &= ~0x0F;
+    if (row == 4)
+        return 0;
+
+    if (col == 0xE0) return row * 4 + 1;
+    if (col == 0xD0) return row * 4 + 2;
+    if (col == 0xB0) return row * 4 + 3;
+    if (col == 0x70) return row * 4 + 4;
+
+    return 0;
+
+}
+
+
+void LED_init(void)
+{
+    P2->DIR = 0x07;
+    P2->OUT &= ~0x07;
+}
+
+void LED_set(int value)
+{
+    value &= 0x07;
+    P2->OUT = (P2->OUT & ~0x07) | value;
+}
 
