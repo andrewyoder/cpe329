@@ -1,1 +1,114 @@
 
+#include "msp.h"
+#define RS 0x20       /* p3.5 mask */
+#define RS 0x40       /* p3.6 mask */
+#define RS 0x80       /* p3.7 mask */
+#define FREQ_1500_kHz 150
+#define FREQ_3_MHz 300
+#define FREQ_6_MHz 600
+#define FREQ_12_MHz 1200
+#define FREQ_24_MHz 2400
+#define FREQ_48_MHz 4800
+
+void set_DCO(int freq);
+void delayMs(int n, int freq);
+void LCD_command(unsigned char command);
+void LCD_data(unsigned char data);
+void LCD_init(void);
+
+
+int main(void) {
+
+    set_DCO(FREQ_12_MHz);
+    
+    for(;;)	{
+        LCD_command(1);			/* clear display*/
+        delayMs(500, FREQ_12_MHz);
+        LCD_command(0x80);			
+        LCD_data(‘L’);
+        LCD_data(‘O’);
+        LCD_data(‘C’);	
+        LCD_data(‘K’);
+        LCD_data(‘E’);
+        LCD_data(‘D’);
+        
+        LCD_data(‘ ’);
+        
+        LCD_data(‘K’);
+        LCD_data(‘E’);
+        LCD_data(‘Y’);
+        LCD_data(‘:’);
+        
+        LCD_data(‘ ’);
+        
+        LCD_data(‘E’);	
+        LCD_data(‘N’);
+        LCD_data(‘T’);
+        LCD_data(‘E’);
+        LCD_data(‘R’);
+        
+        LCD_data(‘ ’);
+        
+        LCD_data(‘K’);
+        LCD_data(‘E’);
+        LCD_data(‘Y’);
+        delayMs(500, FREQ_12_MHz);
+    }
+   
+}
+
+void LCD_init(void) {
+    P3->DIR |= RS | RW | EN;
+    P4->DIR = 0xFF;
+
+    delayMs(30);
+    LCD_command(0x30);
+    delayMs(10);
+    LCD_command(0x30);
+    delayMs(1);
+    LCD_command(0x30);
+
+    LCD_command(0x38);
+    LCD_command(0x06);
+    LCD_command(0x01);
+    LCD_command(0x0F);
+
+}
+
+void LCD_command( unsigned char command)
+{
+    P3->OUT &= ~(RS | RW );
+    P4->OUT = command;
+    P3->OUT |= EN;
+    delayMs(0);
+    P3->OUT &= ~EN;
+    If (command < 4)
+        delayMs(4);
+    else
+        delayMs(1);
+
+}
+
+
+void LCD_data(unsigned char data)
+{
+    P3->OUT |= RS ;
+    P4->OUT &= ~RW;
+    P4->OUT = data;
+    P3->OUT |= EN;
+    delayMs(0);
+    P3->OUT &= ~EN;
+    delayMs(1);
+
+}
+
+/* delay milliseconds */
+void delayMs(int n, int freq) {
+
+    int i, j;
+
+    for (j = 0; j < n; j++)
+        for (i = freq; i > 0; i--);      /* Delay 1 ms*/
+}
+
+
