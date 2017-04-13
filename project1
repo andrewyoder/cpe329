@@ -23,7 +23,11 @@ void LED_set(int value);
 
 int main(void) {
 
+    unsigned char key;
+
     set_DCO(FREQ_12_MHz);
+    keypad_init();
+    LED_init();
     
     for(;;)	{
         LCD_command(1);			/* clear display*/
