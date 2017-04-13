@@ -1,8 +1,8 @@
 
 #include "msp.h"
 #define RS 0x20       /* p3.5 mask */
-#define RS 0x40       /* p3.6 mask */
-#define RS 0x80       /* p3.7 mask */
+#define RW 0x40       /* p3.6 mask */
+#define EN 0x80       /* p3.7 mask */
 #define FREQ_1500_kHz 150
 #define FREQ_3_MHz 300
 #define FREQ_6_MHz 600
