@@ -1,8 +1,9 @@
-
 #include "msp.h"
+
 #define RS 0x20       /* p3.5 mask */
 #define RW 0x40       /* p3.6 mask */
 #define EN 0x80       /* p3.7 mask */
+
 #define FREQ_1500_kHz 150
 #define FREQ_3_MHz 300
 #define FREQ_6_MHz 600
@@ -25,51 +26,40 @@ int main(void) {
 
     unsigned char key;
 
-    set_DCO(FREQ_12_MHz);
+    set_DCO(FREQ_3_MHz);
+    LCD_init();
     keypad_init();
     LED_init();
-    
-    for(;;)	{
-        LCD_command(1);			/* clear display*/
-        delayMs(500, FREQ_12_MHz);
-        LCD_command(0x80);			
+
+    for(;;) {
+        LCD_command(0x1);         /* clear display*/
+        delay();
+        LCD_command(0x80);        /* cursor at beginning of 1st line */
         LCD_data(‘L’);
         LCD_data(‘O’);
-        LCD_data(‘C’);	
+        LCD_data(‘C’);
         LCD_data(‘K’);
         LCD_data(‘E’);
         LCD_data(‘D’);
-        
-        LCD_data(‘ ’);
-        
-        LCD_data(‘K’);
+
+        LCD_command(0xC0);      /* cursor at beginning of 2nd line */
+
         LCD_data(‘E’);
-        LCD_data(‘Y’);
-        LCD_data(‘:’);
-        
-        LCD_data(‘ ’);
-        
-        LCD_data(‘E’);	
         LCD_data(‘N’);
         LCD_data(‘T’);
         LCD_data(‘E’);
         LCD_data(‘R’);
-        
+
         LCD_data(‘ ’);
-        
+
         LCD_data(‘K’);
         LCD_data(‘E’);
         LCD_data(‘Y’);
-        delayMs(500, FREQ_12_MHz);
-        
-        
-        
-        
-        
-        
-        
+        delay();
+
+        key = keypad_getkey();    /* pretty much all I added */
+        LED_set(key);
     }
-   
 }
 
 void LCD_init(void) {
@@ -117,66 +107,65 @@ void LCD_data(unsigned char data)
 
 }
 
-/* delay milliseconds */
-void delayMs(int n, int freq) {
-
-    int i, j;
-
-    for (j = 0; j < n; j++)
-        for (i = freq; i > 0; i--);      /* Delay 1 ms*/
-}
-
+/* This function initializes Port 4 that is connected to the keypad.
+ * All pins are configured as GPIO input pins. The column pins have
+ * the pull-up resistors enabled.
+ */
 void keypad_init(void)
 {
     P4->DIR = 0;
-    P4->REN = 0xF0;
-    P4->OUT = 0xF0;
+    P4->REN = 0xF0;   /* enable pull-up resistor for column pins */
+    P4->OUT = 0xF0;   /* make column pins pull-ups */
 }
+
 
 char keypad_getkey(void)
 {
     int row, col;
-    const char row_select[] = {0x01, 0x02, 0x04, 0x08};
+    const char row_select[] = {0x01, 0x02, 0x04, 0x08};  /* one row is active */
+
+    /* check to see if a key is pressed */
     P4->DIR |= 0x0F;
     P4->OUT &= ~0x0F;
-    delayMs(0, FREQ_3_MHz);
+    delay();
     col = P4->IN & 0xF0;
     P4->OUT |= 0x0F;
     P4->DIR &= ~0x0F;
     if (col == 0xF0)
         return 0;
 
+    /* if a key is pressed, this finds out which key */
     for (row = 0; row < 4; row++)
     {
-        P4->DIR &= ~0x0F;
+        P4->DIR &= 0x0F;
         P4->DIR |= row_select[row];
         P4->OUT &= ~row_select[row];
-        delayMs(0, FREQ_3_MHz);
+        delay();
         col = P4->IN & 0xF0;
         P4->OUT |= row_select[row];
         if (col != 0xF0)
             break;
     }
-
     P4->OUT |= 0x0F;
-    P4->DIR &= ~0x0F;
+    P4->DIR &= 0x0F;
     if (row == 4)
         return 0;
 
-    if (col == 0xE0) return row * 4 + 1;
-    if (col == 0xD0) return row * 4 + 2;
-    if (col == 0xB0) return row * 4 + 3;
-    if (col == 0x70) return row * 4 + 4;
+    if (col == 0xE0) return row * 4 + 1;   /* key in column 0 */
+    if (col == 0xD0) return row * 4 + 2;   /* key in column 1 */
+    if (col == 0xB0) return row * 4 + 3;   /* key in column 2 */
+    if (col == 0x70) return row * 4 + 4;   /* key in column 3 */
 
     return 0;
-
 }
 
 
+
+/* initialize the RGB LED */
 void LED_init(void)
 {
-    P2->DIR = 0x07;
-    P2->OUT &= ~0x07;
+    P2->DIR = 0x07;     /* make LED pins output */
+    P2->OUT &= ~0x07;   /* turn the LEDs off */
 }
 
 void LED_set(int value)
@@ -185,3 +174,31 @@ void LED_set(int value)
     P2->OUT = (P2->OUT & ~0x07) | value;
 }
 
+/* make a small delay */
+void delay(void) {
+}
+
+/* delay milliseconds with varying frequencies */
+void delayMs(int n, int freq) {
+    int i, j;
+
+    for (j = 0; j < n; j++)
+        for (i = freq; i > 0; i--);      /* Delay 1 ms*/
+}
+
+/* change the clock cycle */
+void set_DCO(int freq) {
+    // change DC0 from default of 3MHz to 12MHz.
+    CS->KEY = CS_KEY_VAL; // unlock CS registers
+    CS->CTL0 = 0; // clear register CTL0
+
+    if (freq == 150) CS->CTL0 = CS_CTL0_DCORSEL_0; // set DCO = 1.5 MHz
+    else if (freq == 300) CS->CTL0 = CS_CTL0_DCORSEL_1; // set DCO = 3 MHz
+    else if (freq == 600) CS->CTL0 = CS_CTL0_DCORSEL_2; // set DCO = 6 MHz
+    else if (freq == 1200) CS->CTL0 = CS_CTL0_DCORSEL_3; // set DCO = 12 MHz
+    else if (freq == 2400) CS->CTL0 = CS_CTL0_DCORSEL_4; // set DCO = 24 MHz
+    else if (freq == 4800) CS->CTL0 = CS_CTL0_DCORSEL_5; // set DCO = 48 MHz
+
+    CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3; // select clock sources
+    CS->KEY = 0; // lock the CS registers
+}
