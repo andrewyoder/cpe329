@@ -26,8 +26,8 @@ void delayMs(int n, int u);
 
 int main(void) {
 
-    unsigned char key;
-    int unlocked = 0;
+    unsigned char key[4];
+    int unlocked = 0, index = 0;
 
     set_DCO(FREQ_3_MHz);
     LCD_init();
@@ -60,8 +60,21 @@ int main(void) {
         LCD_data(0x59);  // Y
         delay();
 
-        key = keypad_getkey();
-        LED_set(key);
+        while (index < 4)
+        {
+            key[index] = keypad_getkey();
+            LED_set(key);
+            if (key[index] == '*')
+            {
+                key = NULL;
+                break;
+            }
+            else
+            {
+                index++;
+            }
+        }
+
         unlocked = lockStatus(key);
     } while (!unlocked);
 
@@ -85,9 +98,12 @@ int main(void) {
     }
 }
 
-int lockStatus(unsigned char key) {
+int lockStatus(unsigned char key[]) {
 
-    /* I have no idea how to do a 4-part combination lock... */
+    /* 4-part combination lock all match */
+    if (key[0] == password_char[0] && key[1] == password_char[1] && key[2] == password_char[2] && key[3] == password_char[3])
+        return 1;
+    return 0;
 
 }
 
