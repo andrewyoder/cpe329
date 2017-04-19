@@ -1,4 +1,6 @@
 #include "msp.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 #define RS 0x20       /* p3.5 mask */
 #define RW 0x40       /* p3.6 mask */
@@ -20,91 +22,114 @@ char keypad_getkey(void);
 void LED_init(void);
 void LED_set(int value);
 void set_DCO(int freq);
-void delayMs(int n, int freq);
+void delayMs(int n, int u);
 
 int main(void) {
 
     unsigned char key;
+    int unlocked;
 
     set_DCO(FREQ_3_MHz);
     LCD_init();
     keypad_init();
     LED_init();
 
-    for(;;) {
+    do {
         LCD_command(0x1);         /* clear display*/
         delay();
         LCD_command(0x80);        /* cursor at beginning of 1st line */
-        LCD_data(‘L’);
-        LCD_data(‘O’);
-        LCD_data(‘C’);
-        LCD_data(‘K’);
-        LCD_data(‘E’);
-        LCD_data(‘D’);
+        LCD_data(0x4C);  // L
+        LCD_data(0x4F);  // O
+        LCD_data(0x43);  // C
+        LCD_data(0x4B);  // K
+        LCD_data(0x45);  // E
+        LCD_data(0x44);  // D
 
         LCD_command(0xC0);      /* cursor at beginning of 2nd line */
 
-        LCD_data(‘E’);
-        LCD_data(‘N’);
-        LCD_data(‘T’);
-        LCD_data(‘E’);
-        LCD_data(‘R’);
+        LCD_data(0x45);  // E
+        LCD_data(0x4E);  // N
+        LCD_data(0x54);  // T
+        LCD_data(0x45);  // E
+        LCD_data(0x52);  // R
 
-        LCD_data(‘ ’);
+        LCD_data(0x20);  // ' '
 
-        LCD_data(‘K’);
-        LCD_data(‘E’);
-        LCD_data(‘Y’);
+        LCD_data(0x4B);  // K
+        LCD_data(0x45);  // E
+        LCD_data(0x59);  // Y
         delay();
 
-        key = keypad_getkey();    /* pretty much all I added */
+        key = keypad_getkey();
         LED_set(key);
+        unlocked = lockStatus(key);
+    } while (!unlocked);
+
+    if (unlocked) {
+        LCD_command(0x1);         /* clear display*/
+        delay();
+        LCD_command(0x80);        /* cursor at beginning of 1st line */
+        LCD_data(0x48);  // H
+        LCD_data(0x45);  // E
+        LCD_data(0x4C);  // L
+        LCD_data(0x4C);  // L
+        LCD_data(0x4F);  // O
+
+        LCD_data(0x20);  // ' '
+
+        LCD_data(0x57);  // W
+        LCD_data(0x4F);  // O
+        LCD_data(0x52);  // R
+        LCD_data(0x4C);  // L
+        LCD_data(0x44);  // D
     }
 }
 
+int lockStatus(unsigned char key) {
+
+    /* I have no idea how to do a 4-part combination lock... */
+
+}
+
 void LCD_init(void) {
-    P3->DIR |= RS | RW | EN;
-    P4->DIR = 0xFF;
+    P3->DIR |= RS | RW | EN;  /* make P3 pins output for control data */
+    P4->DIR = 0xFF;           /* make P4 pins output for data */
 
-    delayMs(30);
+    delayMs(30, FREQ_3_MHz);              /* initialization sequence */
     LCD_command(0x30);
-    delayMs(10);
+    delayMs(10, FREQ_3_MHz);
     LCD_command(0x30);
-    delayMs(1);
+    delayMs(1, FREQ_3_MHz);
     LCD_command(0x30);
 
-    LCD_command(0x38);
-    LCD_command(0x06);
-    LCD_command(0x01);
-    LCD_command(0x0F);
-
+    LCD_command(0x38);    /* set 8-bit data, 2-line, 5x7 font */
+    LCD_command(0x06);    /* move cursor right after each char */
+    LCD_command(0x01);    /* clear screen, move cursor to home */
+    LCD_command(0x0F);    /* turn on display, cursor blinking */
 }
 
-void LCD_command( unsigned char command)
+void LCD_command(unsigned char command)
 {
-    P3->OUT &= ~(RS | RW );
-    P4->OUT = command;
-    P3->OUT |= EN;
-    delayMs(0);
-    P3->OUT &= ~EN;
-    If (command < 4)
-        delayMs(4);
+    P3->OUT &= ~(RS | RW );  /* RS = 0, R/W = 0 */
+    P4->OUT = command;       /* put command on data bus */
+    P3->OUT |= EN;           /* pulse E high */
+    delayMs(0, FREQ_3_MHz);
+    P3->OUT &= ~EN;          /* clear E */
+    if (command < 4)
+        delayMs(4, FREQ_3_MHz);          /* command 1 and 2 need up to 1.64 ms */
     else
-        delayMs(1);
-
+        delayMs(1, FREQ_3_MHz);          /* all others 40 us */
 }
-
 
 void LCD_data(unsigned char data)
 {
-    P3->OUT |= RS ;
-    P4->OUT &= ~RW;
-    P4->OUT = data;
-    P3->OUT |= EN;
-    delayMs(0);
-    P3->OUT &= ~EN;
-    delayMs(1);
-
+    P3->OUT |= RS;    /* RS = 1 */
+    P3->OUT &= ~RW;   /* R/W = 0 */
+    P4->OUT = data;   /* put data on bus */
+    P3->OUT |= EN;    /* pulse E */
+    delayMs(0, FREQ_3_MHz);
+    P3->OUT &= ~EN;   /* clear E */
+    delayMs(1, FREQ_3_MHz);       /* wait for controller to do the display */
 }
 
 /* This function initializes Port 4 that is connected to the keypad.
