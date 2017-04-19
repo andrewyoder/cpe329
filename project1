@@ -27,7 +27,7 @@ void delayMs(int n, int u);
 int main(void) {
 
     unsigned char key;
-    int unlocked;
+    int unlocked = 0;
 
     set_DCO(FREQ_3_MHz);
     LCD_init();
