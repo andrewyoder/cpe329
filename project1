@@ -101,11 +101,26 @@ int main(void) {
 int lockStatus(unsigned char key[]) {
 
     /* 4-part combination lock all match */
+    
+    unsigned char password_char[4];
+    get_password_code(password_char);
+    
     if (key[0] == password_char[0] && key[1] == password_char[1] && key[2] == password_char[2] && key[3] == password_char[3])
         return 1;
     return 0;
 
 }
+
+
+void get_password_code( unsigned char password_char[])
+{   
+    password_char[0] = '1';
+    password_char[1] = '2';
+    password_char[2] = '3';
+    password_char[3] = '4';
+
+}
+
 
 void LCD_init(void) {
     P3->DIR |= RS | RW | EN;  /* make P3 pins output for control data */
