@@ -65,7 +65,7 @@ int main(void) {
         unlocked = lockStatus(key);
     } while (!unlocked);
 
-    if (unlocked) {
+    while (unlocked) {
         LCD_command(0x1);         /* clear display*/
         delay();
         LCD_command(0x80);        /* cursor at beginning of 1st line */
