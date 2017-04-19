@@ -11,8 +11,7 @@
 #define FREQ_24_MHz 2400
 #define FREQ_48_MHz 4800
 
-void set_DCO(int freq);
-void delayMs(int n, int freq);
+void delay(void);
 void LCD_command(unsigned char command);
 void LCD_data(unsigned char data);
 void LCD_init(void);
@@ -20,7 +19,8 @@ void keypad_init(void);
 char keypad_getkey(void);
 void LED_init(void);
 void LED_set(int value);
-
+void set_DCO(int freq);
+void delayMs(int n, int freq);
 
 int main(void) {
 
