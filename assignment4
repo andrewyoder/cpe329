@@ -14,14 +14,21 @@ int main(void) {
     WDT_A->CTL = WDT_A_CTL_PW |             // Stop WDT
             WDT_A_CTL_HOLD;
 
+    set_DCO(FREQ_24_MHz);
+
+
     // Configure GPIO
     P1->DIR |= BIT0;
     P1->OUT |= BIT0;
+    P2->DIR |= BIT0;
+    P2->OUT |= BIT0;
 
-    set_DCO(FREQ_24_MHz);
+    P4->SEL1 &= ~BIT3;
+    P4->SEL0 |= BIT3;
+    P4->DIR |= BIT3;
 
     TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-    TIMER_A0->CCR[0] = 724;
+    TIMER_A0->CCR[0] = 485;
     TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
             TIMER_A_CTL_MC__CONTINUOUS;
 
@@ -43,20 +50,23 @@ int main(void) {
 // Timer A0 interrupt service routine
 
 void TA0_0_IRQHandler(void) {
+
+    P2->OUT |= BIT0;
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
 
-    if (led_current_state == BIT1)
+    if (led_current_state == BIT0)
     {
-        TIMER_A0->CCR[0] += 238;              // Add Offset to TACCR0
-        led_current_state = BIT0;
+        TIMER_A0->CCR[0] += 485;              // Add Offset to TACCR0
+        led_current_state  &= ~BIT0;
     }
     else
     {
-        TIMER_A0->CCR[0] += 724;
-        led_current_state = BIT1;
+        TIMER_A0->CCR[0] += 485;
+        led_current_state |= BIT0;
     }
 
     P1->OUT = led_current_state;
+    P2->OUT &= ~BIT0;
 }
 
 /* change the clock cycle */
