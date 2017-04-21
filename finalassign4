@@ -68,45 +68,45 @@ void TA0_0_IRQHandler(void) {
 
     if (flg_ind & 1)
     {
-    if(clk_div == 5)
+    if(clk_div[0] == 5)
     {
-        if (led_current_state == BIT0)
+        if (led_current_state[0] == BIT0)
         {
             TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
-            led_current_state  &= ~BIT0;
+            led_current_state[0]  &= ~BIT0;
         }
         else
         {
             TIMER_A0->CCR[0] += CONST_INCR;
-            led_current_state |= BIT0;
+            led_current_state[0] |= BIT0;
         }
 
-    clk_div = -1;
-    P1->OUT = led_current_state;
+    clk_div[0] = -1;
+    P1->OUT = led_current_state[0];
     }
-    clk_div ++;
+    clk_div[0] ++;
     }
     
     
     if (flg_ind & 2)
     {
-    if(clk_div == 5)
+    if(clk_div[1] == 5)
     {
-        if (led_current_state == BIT0)
+        if (led_current_state[1] == BIT0)
         {
-            TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
-            led_current_state  &= ~BIT0;
+            TIMER_A0->CCR[1] += CONST_INCR2;              // Add Offset to TACCR0
+            led_current_state[1]  &= ~BIT0;
         }
         else
         {
-            TIMER_A0->CCR[0] += CONST_INCR;
-            led_current_state |= BIT0;
+            TIMER_A0->CCR[1] += CONST_INCR2;
+            led_current_state[1] |= BIT0;
         }
 
-    clk_div = -1;
-    P1->OUT = led_current_state;
+    clk_div[1] = -1;
+    P1->OUT = led_current_state[1];
     }
-    clk_div ++;
+    clk_div[1] ++;
     }
 }
 
