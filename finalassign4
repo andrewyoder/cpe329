@@ -6,8 +6,8 @@
 #define FREQ_24_MHz 2400
 #define FREQ_48_MHz 4800
 
-#define CONST_INCR 1500
-#define CONST_INCR2 3000
+#define CONST_INCR 750
+#define CONST_INCR2 1500
 
 int led_current_state[] = {0,0};
 
