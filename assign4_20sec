@@ -25,12 +25,6 @@ int main(void) {
     // Configure GPIO
     P1->DIR |= BIT0;
     P1->OUT &= ~BIT0;
-    P2->DIR |= BIT0;
-    P2->OUT |= BIT0;
-
-    P4->SEL1 &= ~BIT3;
-    P4->SEL0 |= BIT3;
-    P4->DIR |= BIT3;
 
     TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
     TIMER_A0->CCR[0] = CONST_INCR;
@@ -56,22 +50,25 @@ int main(void) {
 
 void TA0_0_IRQHandler(void) {
 
-    P2->OUT |= BIT0;
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
-
-    if (led_current_state == BIT0)
+    
+    if(clk_div = 100)
     {
-        TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
-        led_current_state  &= ~BIT0;
-    }
-    else
-    {
-        TIMER_A0->CCR[0] += CONST_INCR;
-        led_current_state |= BIT0;
-    }
-
+        if (led_current_state == BIT0)
+        {
+            TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
+            led_current_state  &= ~BIT0;
+        }
+        else
+        {
+            TIMER_A0->CCR[0] += CONST_INCR;
+            led_current_state |= BIT0;
+        }
+        
+    clk_div = -1;
     P1->OUT = led_current_state;
-    P2->OUT &= ~BIT0;
+    }
+    clk_div ++;
 }
 
 /* change the clock cycle */
