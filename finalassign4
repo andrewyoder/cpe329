@@ -66,7 +66,7 @@ void TA0_0_IRQHandler(void) {
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
     TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;
 
-    if(clk_div == 230)
+    {if(clk_div == 5)
     {
         if (led_current_state == BIT0)
         {
@@ -82,7 +82,27 @@ void TA0_0_IRQHandler(void) {
     clk_div = -1;
     P1->OUT = led_current_state;
     }
-    clk_div ++;
+    clk_div ++;}
+    
+    
+    
+    {if(clk_div == 5)
+    {
+        if (led_current_state == BIT0)
+        {
+            TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
+            led_current_state  &= ~BIT0;
+        }
+        else
+        {
+            TIMER_A0->CCR[0] += CONST_INCR;
+            led_current_state |= BIT0;
+        }
+
+    clk_div = -1;
+    P1->OUT = led_current_state;
+    }
+    clk_div ++;}
 }
 
 /* change the clock cycle */
