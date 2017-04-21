@@ -5,10 +5,8 @@
 #define FREQ_12_MHz 1200
 #define FREQ_24_MHz 2400
 #define FREQ_48_MHz 4800
-#define CONST_INCR 66
+#define CONST_INCR 150000
 
-/*  29985007.5 clock cycles needed for 20 sec period, 14992503.75 per half */
-/*  149925 clock cycles needed for 100 ms sec period, 100 of these for 10 sec, 200 for 20 sec */
 
 int led_current_state = 0;
 int clk_div = 0;
@@ -51,8 +49,8 @@ int main(void) {
 void TA0_0_IRQHandler(void) {
 
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
-    
-    if(clk_div = 100)
+
+    if(clk_div == 230)
     {
         if (led_current_state == BIT0)
         {
@@ -64,7 +62,7 @@ void TA0_0_IRQHandler(void) {
             TIMER_A0->CCR[0] += CONST_INCR;
             led_current_state |= BIT0;
         }
-        
+
     clk_div = -1;
     P1->OUT = led_current_state;
     }
