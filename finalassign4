@@ -6,11 +6,10 @@
 #define FREQ_24_MHz 2400
 #define FREQ_48_MHz 4800
 
-#define CONST_INCR 150000
-#define CONST_INCR2 300000
+#define CONST_INCR 1500
+#define CONST_INCR2 3000
 
 int led_current_state[] = {0,0};
-int clk_div[] = {0,0};
 
 void set_DCO(int freq);
 
@@ -53,12 +52,12 @@ int main(void) {
 
 void TA0_0_IRQHandler(void) {
     int flg_ind = 0;
-    
+
     if (TIMER_A0->CCTL[0] & 1)
     {
         flg_ind += 1;
     }
-    
+
     if (TIMER_A0->CCTL[0] & 1)
     {
         flg_ind += 2;
@@ -68,8 +67,7 @@ void TA0_0_IRQHandler(void) {
 
     if (flg_ind & 1)
     {
-    if(clk_div[0] == 5)
-    {
+
         if (led_current_state[0] == BIT0)
         {
             TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
@@ -81,17 +79,14 @@ void TA0_0_IRQHandler(void) {
             led_current_state[0] |= BIT0;
         }
 
-    clk_div[0] = -1;
-    P1->OUT = led_current_state[0];
+        P1->OUT = led_current_state[0];
+
     }
-    clk_div[0] ++;
-    }
-    
-    
+
+
     if (flg_ind & 2)
     {
-    if(clk_div[1] == 5)
-    {
+
         if (led_current_state[1] == BIT0)
         {
             TIMER_A0->CCR[1] += CONST_INCR2;              // Add Offset to TACCR0
@@ -103,10 +98,8 @@ void TA0_0_IRQHandler(void) {
             led_current_state[1] |= BIT0;
         }
 
-    clk_div[1] = -1;
     P1->OUT = led_current_state[1];
-    }
-    clk_div[1] ++;
+
     }
 }
 
