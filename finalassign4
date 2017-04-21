@@ -1,0 +1,93 @@
+#include "msp.h"
+#define FREQ_1500_kHz 150
+#define FREQ_3_MHz 300
+#define FREQ_6_MHz 600
+#define FREQ_12_MHz 1200
+#define FREQ_24_MHz 2400
+#define FREQ_48_MHz 4800
+
+#define CONST_INCR 150000
+#define CONST_INCR2 300000
+
+int led_current_state = 0;
+int clk_div = 0;
+
+void set_DCO(int freq);
+
+int main(void) {
+    WDT_A->CTL = WDT_A_CTL_PW |             // Stop WDT
+            WDT_A_CTL_HOLD;
+
+    set_DCO(FREQ_1500_kHz);
+
+
+    // Configure GPIO
+    P1->DIR |= BIT0;
+    P1->OUT &= ~BIT0;
+    P2->DIR |= BIT0;
+    P2->OUT &= ~BIT0;
+
+    TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A0->CCR[0] = CONST_INCR;
+    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A0->CCR[1] = CONST_INCR2;
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
+            TIMER_A_CTL_MC__CONTINUOUS;
+
+    SCB->SCR |= SCB_SCR_SLEEPONEXIT_Msk;    // Enable sleep on exit from ISR
+
+    // Enable global interrupt
+    __enable_irq();
+
+    NVIC->ISER[0] = 1 << ((TA0_0_IRQn) & 31);
+
+    while (1)
+    {
+        __sleep();
+
+        __no_operation();                   // For debugger
+    }
+}
+
+// Timer A0 interrupt service routine
+
+void TA0_0_IRQHandler(void) {
+
+    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+
+    if(clk_div == 230)
+    {
+        if (led_current_state == BIT0)
+        {
+            TIMER_A0->CCR[0] += CONST_INCR;              // Add Offset to TACCR0
+            led_current_state  &= ~BIT0;
+        }
+        else
+        {
+            TIMER_A0->CCR[0] += CONST_INCR;
+            led_current_state |= BIT0;
+        }
+
+    clk_div = -1;
+    P1->OUT = led_current_state;
+    }
+    clk_div ++;
+}
+
+/* change the clock cycle */
+void set_DCO(int freq) {
+
+    // change DC0 from default of 3MHz to 12MHz.
+    CS->KEY = CS_KEY_VAL; // unlock CS registers
+    CS->CTL0 = 0; // clear register CTL0
+
+    if (freq == 150) CS->CTL0 = CS_CTL0_DCORSEL_0; // set DCO = 1.5 MHz
+    else if (freq == 300) CS->CTL0 = CS_CTL0_DCORSEL_1; // set DCO = 3 MHz
+    else if (freq == 600) CS->CTL0 = CS_CTL0_DCORSEL_2; // set DCO = 6 MHz
+    else if (freq == 1200) CS->CTL0 = CS_CTL0_DCORSEL_3; // set DCO = 12 MHz
+    else if (freq == 2400) CS->CTL0 = CS_CTL0_DCORSEL_4; // set DCO = 24 MHz
+    else if (freq == 4800) CS->CTL0 = CS_CTL0_DCORSEL_5; // set DCO = 48 MHz
+
+    CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3; // select clock sources
+    CS->KEY = 0; // lock the CS registers
+}
