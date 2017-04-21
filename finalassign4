@@ -29,7 +29,7 @@ int main(void) {
 
     TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
     TIMER_A0->CCR[0] = CONST_INCR;
-    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A0->CCTL[1] = TIMER_A_CCTLN_CCIE; // TACCR1 interrupt enabled
     TIMER_A0->CCR[1] = CONST_INCR2;
     TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
             TIMER_A_CTL_MC__CONTINUOUS;
@@ -52,8 +52,19 @@ int main(void) {
 // Timer A0 interrupt service routine
 
 void TA0_0_IRQHandler(void) {
-
+    int flg_ind = 0;
+    
+    if (TIMER_A0->CCTL[0] & 1)
+    {
+        flg_ind += 1;
+    }
+    
+    if (TIMER_A0->CCTL[0] & 1)
+    {
+        flg_ind += 2;
+    }
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+    TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;
 
     if(clk_div == 230)
     {
