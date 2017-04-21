@@ -58,10 +58,11 @@ void TA0_0_IRQHandler(void) {
         flg_ind += 1;
     }
 
-    if (TIMER_A0->CCTL[0] & 1)
+    if (TIMER_A0->CCTL[1] & 1)
     {
         flg_ind += 2;
     }
+
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
     TIMER_A0->CCTL[1] &= ~TIMER_A_CCTLN_CCIFG;
 
@@ -98,7 +99,7 @@ void TA0_0_IRQHandler(void) {
             led_current_state[1] |= BIT0;
         }
 
-    P1->OUT = led_current_state[1];
+    P2->OUT = led_current_state[1];
 
     }
 }
