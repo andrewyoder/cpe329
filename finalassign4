@@ -9,8 +9,8 @@
 #define CONST_INCR 150000
 #define CONST_INCR2 300000
 
-int led_current_state = 0;
-int clk_div = 0;
+int led_current_state[] = {0,0};
+int clk_div[] = {0,0};
 
 void set_DCO(int freq);
 
