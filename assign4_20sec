@@ -5,8 +5,8 @@
 #define FREQ_12_MHz 1200
 #define FREQ_24_MHz 2400
 #define FREQ_48_MHz 4800
-#define CONST_INCR 150000
 
+#define CONST_INCR 150000
 
 int led_current_state = 0;
 int clk_div = 0;
