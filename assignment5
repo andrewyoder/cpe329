@@ -12,6 +12,9 @@ volatile unsigned int TempDAC_Value = 0;
 
 int main(void)
 {
+    int slope = 1;
+
+
 
   WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;   // Stop watchdog timer
 
@@ -44,9 +47,31 @@ int main(void)
 
   EUSCI_B0->IFG |= EUSCI_B_IFG_TXIFG;  // Clear TXIFG flag
 
+
+
+
+
   while (1) {
       Drive_DAC(TempDAC_Value);
-      TempDAC_Value += 100;            // increment by 100 mv
+      // 1200 = around 2 volts
+      if (TempDAC_Value == 1200)
+      {
+          slope = 0;
+      }
+      if (TempDAC_Value == 0)
+      {
+          slope = 1;
+      }
+
+      if (slope == 1)
+      {
+          TempDAC_Value += 50;            // increment by 50 mv
+      }
+      else
+      {
+          TempDAC_Value -= 50;            // increment by 50 mv
+      }
+
   }
 
 } // end of main
@@ -72,7 +97,7 @@ void Drive_DAC(unsigned int level){
 
   while (!(EUSCI_B0->IFG & EUSCI_B_IFG_TXIFG));      // Poll the TX flag to wait for completion
 
-  for(i = 200; i > 0; i--);                          // Delay 200 16 MHz SMCLK periods
+  for(i = 1000; i > 0; i--);                          // Delay 100 16 MHz SMCLK periods
                                                      //to ensure TX is complete by SIMO
 
   P4->OUT |= BIT1;                                   // Set P4.1   (drive /CS high on DAC)
