@@ -138,21 +138,3 @@ void TA0_0_IRQHandler(void) {
       TIMER_A0->CCR[0] += CONST_INCR;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
