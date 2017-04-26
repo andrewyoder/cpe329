@@ -1,11 +1,11 @@
 //*****************************************************************************
-//
 // DriveDAC.C
-//
+// 
+// Triangle Waveform, 2 Vpp with 1 Vdc
 //****************************************************************************
 
 #include "msp.h"
-#define CONST_INCR 1000
+#define CONST_INCR 2000
 
 void Drive_DAC(unsigned int level);
 
@@ -44,13 +44,13 @@ int main(void)
                                                 // be placed in TXBUF
 
   EUSCI_B0->IFG |= EUSCI_B_IFG_TXIFG;  // Clear TXIFG flag
-  
-  
+
+
   TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
   TIMER_A0->CCR[0] = CONST_INCR;
   TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
             TIMER_A_CTL_MC__CONTINUOUS;
-            
+
   // Enable global interrupt
   __enable_irq();
 
@@ -58,14 +58,12 @@ int main(void)
 
 
 
-
-
   while (1) {
-      
-      
+
+
         __sleep();
 
-        __no_operation(); 
+        __no_operation();
 
   }
 
@@ -102,40 +100,36 @@ void Drive_DAC(unsigned int level){
 
 
 
-
-
-
 // Timer A0 interrupt service routine
 
 void TA0_0_IRQHandler(void) {
 
-    static int clk_div = 0;
-    
+    static int slope = 1;
+
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
-    
+
     Drive_DAC(TempDAC_Value);
       // 1200 = around 2 volts
-      
-      
-      if (clk_div == 1200)
+
+
+      if (TempDAC_Value == 1200)
       {
-          TempDAC_Value = 1200;
+          slope = 0;
       }
-      if (clk_div == 0)
+      if (TempDAC_Value == 0)
       {
-          TempDAC_Value = 0;
+          slope = 1;
       }
 
-      if (clk_div == 0)
+      if (slope == 1)
       {
-          clk_div += 50;            // increment by 50 
+          TempDAC_Value += 10;            // increment by 10 mv
       }
       else
       {
-          clk_div -= 50;            // increment by 50 
+          TempDAC_Value -= 10;            // increment by 10 mv
       }
-      
+
       TIMER_A0->CCR[0] += CONST_INCR;
 
 }
-
