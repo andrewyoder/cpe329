@@ -5,7 +5,7 @@
 //****************************************************************************
 
 #include "msp.h"
-#define CONST_INCR 1000
+#define CONST_INCR 2000
 
 void Drive_DAC(unsigned int level);
 
@@ -128,11 +128,11 @@ void TA0_0_IRQHandler(void) {
 
       if (slope == 1)
       {
-          TempDAC_Value += 50;            // increment by 50 mv
+          TempDAC_Value += 10;            // increment by 10 mv
       }
       else
       {
-          TempDAC_Value -= 50;            // increment by 50 mv
+          TempDAC_Value -= 10;            // increment by 10 mv
       }
       
       TIMER_A0->CCR[0] += CONST_INCR;
