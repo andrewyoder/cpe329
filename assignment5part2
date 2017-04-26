@@ -92,7 +92,7 @@ void Drive_DAC(unsigned int level){
 
   while (!(EUSCI_B0->IFG & EUSCI_B_IFG_TXIFG));      // Poll the TX flag to wait for completion
 
-  for(i = 1000; i > 0; i--);                          // Delay 100 16 MHz SMCLK periods
+  //for(i = 1000; i > 0; i--);                          // Delay 100 16 MHz SMCLK periods
                                                      //to ensure TX is complete by SIMO
 
   P4->OUT |= BIT1;                                   // Set P4.1   (drive /CS high on DAC)
