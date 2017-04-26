@@ -109,7 +109,7 @@ void Drive_DAC(unsigned int level){
 
 void TA0_0_IRQHandler(void) {
 
-    static int slope = 1;
+    static int clk_div = 0;
     
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
     
@@ -117,22 +117,22 @@ void TA0_0_IRQHandler(void) {
       // 1200 = around 2 volts
       
       
-      if (TempDAC_Value == 1200)
+      if (clk_div == 1200)
       {
-          slope = 0;
+          TempDAC_Value = 1;
       }
-      if (TempDAC_Value == 0)
+      if (clk_div == 0)
       {
-          slope = 1;
+          TempDAC_Value = 0;
       }
 
-      if (slope == 1)
+      if (clk_div == 0)
       {
-          TempDAC_Value += 50;            // increment by 50 mv
+          clk_div += 50;            // increment by 50 
       }
       else
       {
-          TempDAC_Value -= 50;            // increment by 50 mv
+          clk_div -= 50;            // increment by 50 
       }
       
       TIMER_A0->CCR[0] += CONST_INCR;
