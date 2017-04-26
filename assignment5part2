@@ -119,7 +119,7 @@ void TA0_0_IRQHandler(void) {
       
       if (clk_div == 1200)
       {
-          TempDAC_Value = 1;
+          TempDAC_Value = 1200;
       }
       if (clk_div == 0)
       {
