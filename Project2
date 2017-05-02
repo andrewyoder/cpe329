@@ -25,6 +25,7 @@ const char SineTable64[] = {
 
 const char SineTable120[] = 
 { 600,
+631,
 663,
 694,
 725,
