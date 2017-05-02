@@ -9,7 +9,10 @@
 
 void Drive_DAC(unsigned int level);
 
-volatile unsigned int TempDAC_Value = 0;
+unsigned int offset = 0;
+volatile unsigned int TempDAC_Value = offset;
+unsigned int waveform = 0;
+unsigned int max = 1200;
 
 int main(void)
 {
@@ -109,22 +112,46 @@ void TA0_0_IRQHandler(void) {
       // 1200 = around 2 volts
 
 
-      if (TempDAC_Value == 1200)
+      if (TempDAC_Value > max/2 )
       {
           slope = 0;
       }
-      if (TempDAC_Value == 0)
+      if (TempDAC_Value < max/2)
       {
           slope = 1;
       }
 
       if (slope == 1)
       {
-          TempDAC_Value += 10;            // increment by 10 mv
+          if (waveform == 0)
+          {
+              TempDAC_Value += max/120;            // triangular waveform
+          }
+          if (waveform == 1)
+          {
+              TempDAC_Value == max + offset;            // square waveform
+          }
+          if (waveform == 2)
+          {
+              //sinusoid
+          }
+          
       }
       else
       {
-          TempDAC_Value -= 10;            // increment by 10 mv
+          if (waveform == 0)
+          {
+              TempDAC_Value -= max/120;            // triangular waveform
+          }
+          if (waveform == 1)
+          {
+              TempDAC_Value == offset;            // square waveform
+          }
+          if (waveform == 2)
+          {
+              //sinusoid
+          }
+
       }
 
       TIMER_A0->CCR[0] += CONST_INCR;
