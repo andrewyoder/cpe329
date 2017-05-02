@@ -1,18 +1,19 @@
 //*****************************************************************************
-// DriveDAC.C
+// P2.C
 // 
-// Triangle Waveform, 2 Vpp with 1 Vdc
+// function generator
 //****************************************************************************
 
 #include "msp.h"
 #define CONST_INCR 2000
+#define offset 0
+#define volts 2
 
 void Drive_DAC(unsigned int level);
 
-unsigned int offset = 0;
 volatile unsigned int TempDAC_Value = offset;
 unsigned int waveform = 0;
-unsigned int max = 1200;
+unsigned int max = 600*volts;
 
 int main(void)
 {
