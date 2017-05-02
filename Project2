@@ -5,10 +5,7 @@
 //****************************************************************************
 
 #include "msp.h"
-#define CONST_INCR 101*10 //ms in cycle
-#define offset 630*1      // in volts
 #define volts 2
-#define duty 25
 
 void Drive_DAC(unsigned int level);
 void delay(void);
@@ -21,6 +18,11 @@ unsigned int waveform = 2;
 unsigned int count = 0;
 unsigned int max = 630*volts;
 unsigned int on_count = (25 *240)/100;
+unsigned int duty = 50;
+unsigned int CONST_INCR = 101*period;
+unsigned int offset = 630*(off_vol/10);      
+unsigned int period = 10     //in ms
+unsigned int off_vol = 0;   // in volts * .1
 
 const char SineTable120[] = {
     128, 134, 141, 147, 154, 160, 167, 173, 179, 185, 191, 197, 202, 208, 213, 218,
