@@ -101,10 +101,10 @@ int main(void) {
 int lockStatus(unsigned char key[]) {
 
     /* 4-part combination lock all match */
-    
+
     unsigned char password_char[4];
     get_password_code(password_char);
-    
+
     if (key[0] == password_char[0] && key[1] == password_char[1] && key[2] == password_char[2] && key[3] == password_char[3])
         return 1;
     return 0;
@@ -113,7 +113,7 @@ int lockStatus(unsigned char key[]) {
 
 
 void get_password_code( unsigned char password_char[])
-{   
+{
     password_char[0] = '1';
     password_char[1] = '2';
     password_char[2] = '3';
@@ -163,54 +163,58 @@ void LCD_data(unsigned char data)
     delayMs(1, FREQ_3_MHz);       /* wait for controller to do the display */
 }
 
-/* This function initializes Port 4 that is connected to the keypad.
+/* This function initializes the column pins.
  * All pins are configured as GPIO input pins. The column pins have
  * the pull-up resistors enabled.
  */
 void keypad_init(void)
 {
-    P4->DIR = 0;
-    P4->REN = 0xF0;   /* enable pull-up resistor for column pins */
-    P4->OUT = 0xF0;   /* make column pins pull-ups */
+    /* column E, F */
+    P5->DIR &= ~BIT6 | ~BIT7;
+    P5->REN |= BIT6 | BIT7;   /* enable pull-up resistor for column E pins */
+    P5->OUT |= BIT6 | BIT7;   /* make column pins pull-ups */
+    /* column G */
+    P3->DIR &= ~BIT0;
+    P3->REN |= BIT0;   /* enable pull-up resistor for column G pins */
+    P3->OUT |= BIT0;   /* make column pins pull-ups */
 }
 
 
 char keypad_getkey(void)
 {
     int row, col;
-    const char row_select[] = {0x01, 0x02, 0x04, 0x08};  /* one row is active */
+    const char row_select[] = {0x20, 0x40, 0x80};  /* one row is active */
 
     /* check to see if a key is pressed */
-    P4->DIR |= 0x0F;
-    P4->OUT &= ~0x0F;
+    P2->DIR |= 0xF0;
+    P2->OUT &= ~0xF0;
     delay();
-    col = P4->IN & 0xF0;
-    P4->OUT |= 0x0F;
-    P4->DIR &= ~0x0F;
-    if (col == 0xF0)
+    col = P2->IN & 0x0F;
+    P2->OUT |= 0xF0;
+    P2->DIR &= ~0xF0;
+    if (col == 0x0F)
         return 0;
 
     /* if a key is pressed, this finds out which key */
-    for (row = 0; row < 4; row++)
+    for (row = 0; row < 3; row++)
     {
-        P4->DIR &= 0x0F;
-        P4->DIR |= row_select[row];
-        P4->OUT &= ~row_select[row];
+        P3->DIR &= 0xF0;
+        P3->DIR |= row_select[row];
+        P3->OUT &= ~row_select[row];
         delay();
-        col = P4->IN & 0xF0;
-        P4->OUT |= row_select[row];
+        col = P3->IN & 0xF0;
+        P2->OUT |= row_select[row];
         if (col != 0xF0)
             break;
     }
-    P4->OUT |= 0x0F;
-    P4->DIR &= 0x0F;
-    if (row == 4)
+    P2->OUT |= 0xF0;
+    P2->DIR &= 0xF0;
+    if (row == 3)
         return 0;
 
-    if (col == 0xE0) return row * 4 + 1;   /* key in column 0 */
-    if (col == 0xD0) return row * 4 + 2;   /* key in column 1 */
-    if (col == 0xB0) return row * 4 + 3;   /* key in column 2 */
-    if (col == 0x70) return row * 4 + 4;   /* key in column 3 */
+    if (col == 0xD0) return row * 4 + 1;   /* key in column G */
+    if (col == 0xB0) return row * 4 + 2;   /* key in column F */
+    if (col == 0x70) return row * 4 + 3;   /* key in column E */
 
     return 0;
 }
