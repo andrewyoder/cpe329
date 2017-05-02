@@ -10,6 +10,9 @@
 #define volts 2
 
 void Drive_DAC(unsigned int level);
+void delay(void);
+void keypad_init(void);
+char keypad_getkey(void);
 
 volatile unsigned int TempDAC_Value = offset;
 unsigned int slope = 1;
@@ -146,6 +149,8 @@ const char SineTable120[] =
 int main(void)
 {
 
+    keypad_init();
+
     TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
      TIMER_A0->CCR[0] = CONST_INCR;
      TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
@@ -231,6 +236,65 @@ void Drive_DAC(unsigned int level){
 }
 
 
+/* This function initializes the column pins.
+ * All pins are configured as GPIO input pins. The column pins have
+ * the pull-up resistors enabled.
+ */
+void keypad_init(void)
+{
+    /* column E, F */
+    P5->DIR &= ~BIT6 | ~BIT7;
+    P5->REN |= BIT6 | BIT7;   /* enable pull-up resistor for column E pins */
+    P5->OUT |= BIT6 | BIT7;   /* make column pins pull-ups */
+    /* column G */
+    P3->DIR &= ~BIT0;
+    P3->REN |= BIT0;   /* enable pull-up resistor for column G pins */
+    P3->OUT |= BIT0;   /* make column pins pull-ups */
+}
+
+
+char keypad_getkey(void)
+{
+    int row, col;
+    const char row_select[] = {0x20, 0x40, 0x80};  /* one row is active */
+
+    /* check to see if a key is pressed */
+    P2->DIR |= 0xF0;
+    P2->OUT &= ~0xF0;
+    delay();
+    col = P2->IN & 0x0F;
+    P2->OUT |= 0xF0;
+    P2->DIR &= ~0xF0;
+    if (col == 0x0F)
+        return 0;
+
+    /* if a key is pressed, this finds out which key */
+    for (row = 0; row < 3; row++)
+    {
+        P3->DIR &= 0xF0;
+        P3->DIR |= row_select[row];
+        P3->OUT &= ~row_select[row];
+        delay();
+        col = P3->IN & 0xF0;
+        P2->OUT |= row_select[row];
+        if (col != 0xF0)
+            break;
+    }
+    P2->OUT |= 0xF0;
+    P2->DIR &= 0xF0;
+    if (row == 3)
+        return 0;
+
+    if (col == 0xD0) return row * 4 + 1;   /* key in column G */
+    if (col == 0xB0) return row * 4 + 2;   /* key in column F */
+    if (col == 0x70) return row * 4 + 3;   /* key in column E */
+
+    return 0;
+}
+
+/* make a small delay */
+void delay(void) {
+}
 
 // Timer A0 interrupt service routine
 
