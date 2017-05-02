@@ -8,6 +8,7 @@
 #define CONST_INCR 101*10 //ms in cycle
 #define offset 630*1      // in volts
 #define volts 2
+#define duty 25
 
 void Drive_DAC(unsigned int level);
 void delay(void);
@@ -19,6 +20,7 @@ unsigned int slope = 1;
 unsigned int waveform = 2;
 unsigned int count = 0;
 unsigned int max = 630*volts;
+unsigned int on_count = (25 *240)/100;
 
 const char SineTable120[] = {
     128, 134, 141, 147, 154, 160, 167, 173, 179, 185, 191, 197, 202, 208, 213, 218,
@@ -216,13 +218,13 @@ void TA0_0_IRQHandler(void) {
       if (waveform == 1)
       {
           count++;
-          if (count == 120)
+
+          if (count == on_count)            // square waveform
+              TempDAC_Value = offset;
+          if (count == 240)
           {
               count = 0;
-              if (TempDAC_Value == max + offset)            // square waveform
-                  TempDAC_Value = offset;
-              else
-                  TempDAC_Value = max + offset;
+              TempDAC_Value = max + offset;
           }
 
       }
