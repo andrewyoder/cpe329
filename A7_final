@@ -17,17 +17,60 @@ unsigned int return_flag = 0;
 
 int main(void) {
 
-   WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;   // Stop watchdog timer
+    WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;   // Stop watchdog timer
+
+        // DCO = 24 MHz, SMCLK and MCLK = DCO
+        CS->KEY = CS_KEY_VAL;
+        CS->CTL0 = 0;
+        CS->CTL0 = CS_CTL0_DCORSEL_4;   // DCO = 24 MHz
+        CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3;
+        CS->KEY = 0;
+
+        // Configure port bits for SPI
+        P5->DIR |= BIT1;                     // Will use BIT4 to activate /CE on the DAC
+        P1SEL0 |= BIT6 + BIT5;               // Configure P1.6 and P1.5 for UCB0SIMO and UCB0CLK
+        P1SEL1 &= ~(BIT6 + BIT5);            //
+
+        // SPI Setup
+        EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SWRST;   // Put eUSCI state machine in reset
+
+        EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_SWRST |   // Remain eUSCI state machine in reset
+                          EUSCI_B_CTLW0_MST   |   // Set as SPI master
+                          EUSCI_B_CTLW0_SYNC  |   // Set as synchronous mode
+                          EUSCI_B_CTLW0_CKPL  |   // Set clock polarity high
+                          EUSCI_B_CTLW0_MSB;      // MSB first
+
+        EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SSEL__SMCLK; // SMCLK
+        EUSCI_B0->BRW = 0x01;                         // divide by 16, clock = fBRCLK/(UCBRx)
+        EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST;      // Initialize USCI state machine, SPI
+                                                      // now waiting for something to
+                                                      // be placed in TXBUF
+
+        EUSCI_B0->IFG |= EUSCI_B_IFG_TXIFG;  // Clear TXIFG flag
+
+
 
    __disable_irq();
    UART0_init();
 
    NVIC_SetPriority(EUSCIA0_IRQn, 4);
-   NVIC_EnableIRQ(EUSCIA0_IRQn, 4);
+   NVIC_EnableIRQ(EUSCIA0_IRQn);
    __enable_irq();
+
+
+   Drive_DAC(0);
 
    while(1) {
 
+       if (return_flag == 1)
+       {
+           return_flag = 0;
+           if (input_dac < 4096)
+           {
+               Drive_DAC(1890 *((float)input_dac/4095));
+           }
+           input_dac = 0;
+       }
    }
 }
 
@@ -87,7 +130,7 @@ void Drive_DAC(unsigned int level){
 
 void EUSCIA0_IRQHandler(void)
 {
-    char c;
+    int c;
     int current;
 
     c = EUSCI_A0->RXBUF;                  /* read the receive char */
@@ -111,8 +154,7 @@ void EUSCIA0_IRQHandler(void)
     }
 
 
-    while(!(EUSCI_A0->IFG & 0x02))    /* wait for transit buffer empty */
-    {}
+    while(!(EUSCI_A0->IFG & 0x02)) {}    /*wait for transit buffer empty */
     EUSCI_A0->TXBUF = c;                  /* send the char */
 
 
