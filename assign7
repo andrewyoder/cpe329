@@ -1,0 +1,119 @@
+//*****************************************************************************
+//
+// MSP432 main.c template - Empty main
+//
+//****************************************************************************
+
+#include "msp.h"
+
+void delayMs(int n);
+void UART0_init(void);
+void Drive_DAC(unsigned int level);
+
+
+int input_dac = 0;
+unsigned int return_flag = 0;
+
+
+int main(void) {
+
+   WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;   // Stop watchdog timer
+
+   __disable_irq();
+   UART0_init();
+
+   NVIC_SetPriority(EUSCIA0_IRQn, 4);
+   NVIC_EnableIRQ(EUSCIA0_IRQn, 4);
+   __enable_irq();
+
+   while(1) {
+
+   }
+}
+
+
+void UART0_init(void)
+{
+    EUSCI_A0->CTLW0 |= 1;
+    EUSCI_A0->MCTLW = 0;
+    EUSCI_A0->CTLW0 = 0x0081;
+    EUSCI_A0->BRW = 26;        // baud rate 115 200 bps
+    P1->SEL0 |= 0x0C;
+    P1->SEL1 &= ~0x0C;
+    EUSCI_A0->CTLW0 &= ~1;
+}
+
+
+/* delay milliseconds */
+void delayMs(int n) {
+
+    int i, j;
+
+    for (j = 0; j < n; j++)
+        for (i = 300; i > 0; i--);      /* Delay 1 ms*/
+}
+
+
+
+
+void Drive_DAC(unsigned int level){
+    unsigned int DAC_Word = 0;
+    int i;
+
+    DAC_Word = (0x1000) | (level & 0x0FFF);   // 0x1000 sets DAC for Write
+                                              // to DAC, Gain = 2, /SHDN = 1
+                                              // and put 12-bit level value
+                                              // in low 12 bits.
+
+    P5->OUT &= ~BIT1;                                   // Clear P4.1 (drive /CS low on DAC)
+                                                        // Using a port output to do this for now
+
+    EUSCI_B0->TXBUF = (unsigned char) (DAC_Word >> 8);  // Shift upper byte of DAC_Word
+                                                        // 8-bits to right
+
+    while (!(EUSCI_B0->IFG & EUSCI_B_IFG_TXIFG));              // USCI_A0 TX buffer ready?
+    EUSCI_B0->TXBUF = (unsigned char) (DAC_Word & 0x00FF);     // Transmit lower byte to DAC
+
+    while (!(EUSCI_B0->IFG & EUSCI_B_IFG_TXIFG));      // Poll the TX flag to wait for completion
+
+    for(i = 200; i > 0; i--);                          // Delay 200 16 MHz SMCLK periods
+                                                       //to ensure TX is complete by SIMO
+
+    P5->OUT |= BIT1;                                   // Set P4.1   (drive /CS high on DAC)
+
+    return;
+}
+
+
+void EUSCIA0_IRQHandler(void)
+{
+    char c;
+    int current;
+
+    c = EUSCI_A0->RXBUF;                  /* read the receive char */
+
+    if(c == 0x0D)
+        return_flag = 1;
+    else if((unsigned int)c > 47 && (unsigned int)c < 58)
+    {
+        current = (unsigned int)c - 48;
+
+        if (input_dac == 0)
+            input_dac += current;
+        else if (input_dac < 10)
+            input_dac += current*10;
+        else if (input_dac < 100)
+            input_dac += current*100;
+        else if (input_dac < 1000)
+            input_dac += current*1000;
+        else if (input_dac < 10000)
+            input_dac += current*10000;
+    }
+
+
+    while(!(EUSCI_A0->IFG & 0x02))    /* wait for transit buffer empty */
+    {}
+    EUSCI_A0->TXBUF = c;                  /* send the char */
+
+
+}
