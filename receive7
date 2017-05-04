@@ -1,0 +1,60 @@
+//*****************************************************************************
+//
+// MSP432 main.c template - Empty main
+//
+//****************************************************************************
+
+#include "msp.h"
+
+void delayMs(int n);
+void UART0_init(void);
+
+
+void main(void)
+{
+    UART0_init();
+
+    P2->SEL1 &= ~7;
+    P2->SEL0 &= ~7;
+    P2->DIR |=7;
+
+
+
+    while(1)
+    {
+        /*while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'Y';
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'e';
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 's';
+        delayMs(2);
+        */
+
+        while (!(EUSCI_A0->IFG & 0x01)){}
+        P2->OUT = EUSCI_A0->RXBUF;
+    }
+	
+}
+
+
+void UART0_init(void)
+{
+    EUSCI_A0->CTLW0 |= 1;
+    EUSCI_A0->MCTLW = 0;
+    EUSCI_A0->CTLW0 = 0x0081;
+    EUSCI_A0->BRW = 26;        // baud rate 115 200 bps
+    P1->SEL0 |= 0x0C;
+    P1->SEL1 &= ~0x0C;
+    EUSCI_A0->CTLW0 &= ~1;
+}
+
+
+/* delay milliseconds */
+void delayMs(int n) {
+
+    int i, j;
+
+    for (j = 0; j < n; j++)
+        for (i = 300; i > 0; i--);      /* Delay 1 ms*/
+}
