@@ -1,0 +1,49 @@
+//*****************************************************************************
+//
+// MSP432 main.c template - Empty main
+//
+//****************************************************************************
+
+#include "msp.h"
+
+void main(void)
+{
+	
+    WDTCTL = WDTPW | WDTHOLD;           // Stop watchdog timer
+
+
+
+    while(1)
+    {
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'a';
+        delayMs(2);
+
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'X';
+        delayMs(2);
+    }
+	
+}
+
+
+void UART0_init(void)
+{
+    EUSCI_A0->CTLW0 |= 1;
+    EUSCI_A0->MCTLW = 0;
+    EUSCI_A0->CTLW0 = 0x0081;
+    EUSCI_A0->BRW = 300;        // baud rate 10 000 bps
+    P1->SEL0 |= 0x0C;
+    P1->SEL1 &= ~0x0C;
+    EUSCI_A0->CTLW0 &= ~1;
+}
+
+
+/* delay milliseconds */
+void delayMs(int n) {
+
+    int i, j;
+
+    for (j = 0; j < n; j++)
+        for (i = 300; i > 0; i--);      /* Delay 1 ms*/
+}
