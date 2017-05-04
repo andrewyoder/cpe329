@@ -6,21 +6,22 @@
 
 #include "msp.h"
 
+void delayMs(int n);
+void UART0_init(void);
+
+
 void main(void)
 {
-	
-    WDTCTL = WDTPW | WDTHOLD;           // Stop watchdog timer
-
-
+    UART0_init();
 
     while(1)
     {
         while (!(EUSCI_A0->IFG & 0x02)){}
-        EUSCI_A0->TXBUF = 'a';
-        delayMs(2);
-
+        EUSCI_A0->TXBUF = 'Y';
         while (!(EUSCI_A0->IFG & 0x02)){}
-        EUSCI_A0->TXBUF = 'X';
+        EUSCI_A0->TXBUF = 'e';
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 's';
         delayMs(2);
     }
 	
@@ -32,7 +33,7 @@ void UART0_init(void)
     EUSCI_A0->CTLW0 |= 1;
     EUSCI_A0->MCTLW = 0;
     EUSCI_A0->CTLW0 = 0x0081;
-    EUSCI_A0->BRW = 300;        // baud rate 10 000 bps
+    EUSCI_A0->BRW = 26;        // baud rate 115 200 bps
     P1->SEL0 |= 0x0C;
     P1->SEL1 &= ~0x0C;
     EUSCI_A0->CTLW0 &= ~1;
