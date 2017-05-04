@@ -1,0 +1,19 @@
+/* Receive a character from UART2 receiver, send it back through UART2 */
+
+#include "msp.h"
+
+// init
+
+int main(void) {
+   char c;
+  
+   UART2_init();
+  
+   while(1) {
+      while(!(EUSCI_A0->IFG & 0x01)) { }    /* wait until receive buffer is full */
+      c = EUSCI_A0->RXBUF;                  /* read the receive char */
+     
+      while(!(EUSCI_A0->IFG & 0x02)) { }    /* wait for transit buffer empty */
+      EUSCI_A0->TXBUF = c;                  /* send the char */
+   }
+}
