@@ -57,6 +57,11 @@ int main(void) {
    NVIC_EnableIRQ(EUSCIA0_IRQn);
    __enable_irq();
 
+   P2->SEL1 &= ~7;
+   P2->SEL0 &= ~7;
+   P2->DIR |=7;
+   P2->OUT &= ~7;
+
 
    Drive_DAC(0);
 
@@ -84,6 +89,7 @@ void UART0_init(void)
     P1->SEL0 |= 0x0C;
     P1->SEL1 &= ~0x0C;
     EUSCI_A0->CTLW0 &= ~1;
+    EUSCI_A0->IE |= 1;
 }
 
 
@@ -130,13 +136,18 @@ void Drive_DAC(unsigned int level){
 
 void EUSCIA0_IRQHandler(void)
 {
-    int c;
-    int current;
+    char c = 'a';
+    //int current;
 
-    c = EUSCI_A0->RXBUF;                  /* read the receive char */
+    P2->OUT = EUSCI_A0->RXBUF;                  /* read the receive char */
 
-    if(c == 0x0D)
+    /*if(c == 0x0D)
+    {
         return_flag = 1;
+        P2->OUT |= 7;
+
+
+    }
     else if((unsigned int)c > 47 && (unsigned int)c < 58)
     {
         current = (unsigned int)c - 48;
@@ -151,11 +162,11 @@ void EUSCIA0_IRQHandler(void)
             input_dac += current*1000;
         else if (input_dac < 10000)
             input_dac += current*10000;
-    }
+    }*/
 
 
-    while(!(EUSCI_A0->IFG & 0x02)) {}    /*wait for transit buffer empty */
-    EUSCI_A0->TXBUF = c;                  /* send the char */
+    while(!(EUSCI_A0->IFG & 0x02)) {}   /* wait for transit buffer empty */
+    EUSCI_A0->TXBUF = 0x61;               /*    send the char */
 
 
 }
