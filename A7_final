@@ -53,10 +53,10 @@ int main(void) {
    __disable_irq();
    UART0_init();
 
-   P2->SEL1 &= ~7;
+   /*P2->SEL1 &= ~7;
       P2->SEL0 &= ~7;
       P2->DIR |=7;
-      P2->OUT &= ~7;
+      P2->OUT &= ~7; */
 
    NVIC_SetPriority(EUSCIA0_IRQn, 4);
    NVIC_EnableIRQ(EUSCIA0_IRQn);
@@ -153,8 +153,8 @@ void EUSCIA0_IRQHandler(void)
     {
         current = (unsigned int)c - 48;
 
-        P2->OUT &= ~7;
-        P2->OUT |= current;
+        //P2->OUT &= ~7;
+       // P2->OUT |= current;
 
         input_dac = input_dac*10 + current;
     }
