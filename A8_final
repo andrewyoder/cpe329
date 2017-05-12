@@ -39,30 +39,34 @@ void main(void)
     UART0_init();
 
 
-    for (i = 20000; i > 0; i--);        // Delay
-
-            // Start sampling/conversion
-            ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
-
     while (1)
             {
+        for (i = 20000; i > 0; i--);        // Delay
+
+                            // Start sampling/conversion
+                            ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
+                            __sleep();
+
+                            __no_operation();                   // For debugger
+
             if (ADC_flag == 1)
                 {
                 curr_vol = curr_vol / 50;
 
                 while (!(EUSCI_A0->IFG & 0x02)){}
-                EUSCI_A0->TXBUF = 'Y';
+                EUSCI_A0->TXBUF = curr_vol / 100 + 0x30;
                 while (!(EUSCI_A0->IFG & 0x02)){}
                 EUSCI_A0->TXBUF = '.';
                 while (!(EUSCI_A0->IFG & 0x02)){}
-                EUSCI_A0->TXBUF = 'e';
+                EUSCI_A0->TXBUF = (curr_vol % 100) / 10 + 0x30;
                 while (!(EUSCI_A0->IFG & 0x02)){}
-                EUSCI_A0->TXBUF = 's';
+                EUSCI_A0->TXBUF = (curr_vol % 100) % 10 + 0x30 ;
 
-                while(!(EUSCI_A0->IFG & 0x02)) {}    /*wait for transit buffer empty */
-                EUSCI_A0->TXBUF = 0x0A;                   /*send the char */
+                while(!(EUSCI_A0->IFG & 0x02)) {}   /* wait for transit buffer empty */
+                EUSCI_A0->TXBUF = 0x0A;              /*     send the char */
                 ADC_flag = 0;
                 }
+
             }
 
 }
