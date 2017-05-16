@@ -6,3 +6,13 @@ https://www.invensense.com/wp-content/uploads/2015/02/DS-000021-v1.22.pdf
 
 https://www.sparkfun.com/products/10468
 Graphic Equalizer Display Filter - MSGEQ7
+
+
+
+
+
+
+
+
+
+for header files - https://github.com/energia/Energia/blob/master/hardware/msp432/cores/msp432/inc/msp432p401r.h
