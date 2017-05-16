@@ -1,0 +1,16 @@
+To do list
+
+measure voltage
+-AC setting
+-DC setting
+
+frequency
+-measure min and max
+-if greater or equal than 0.5 diff then record time between max and min * 2 = period, f = 1/period.
+
+integrate with console
+-feq greater than 9600
+-VT100 protocol, non changing field locations
+-describe AC, DC, freq how it was recorded
+-easy to read
+-bargraphs for voltages being measured. Bar graph real-time monitored proportional lengths to voltages.
