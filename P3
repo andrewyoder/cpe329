@@ -14,3 +14,112 @@ integrate with console
 -describe AC, DC, freq how it was recorded
 -easy to read
 -bargraphs for voltages being measured. Bar graph real-time monitored proportional lengths to voltages.
+
+
+
+
+
+
+
+/**
+ * Assignment 8 - Analog to Digital
+ *
+ * Carlos Hernandez, Andrew Yoder
+ * May 11, 2017
+ */
+ 
+#include "msp.h"
+#define CYCLESPERMILL 48000
+
+void delayMs(int n);
+void UART0_init(void);
+
+int total_area = 0;
+int max = 0;
+int min = 0;
+unsigned int ADC_flag = 0;
+
+void main(void)
+{
+    volatile unsigned int i;
+
+    WDT_A->CTL = WDT_A_CTL_PW |             // Stop WDT
+                 WDT_A_CTL_HOLD;
+
+    // GPIO Setup
+    P6->SEL1 |= BIT0;                       // Configure P6.0 for ADC
+    P6->SEL0 |= BIT0;
+
+    // Enable global interrupt
+    __enable_irq();
+
+    // Enable ADC interrupt in NVIC module
+    NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
+
+    // Sampling time, S&H=16, ADC14 on
+    ADC14->CTL0 = ADC14_CTL0_SHT0_2 | ADC14_CTL0_SHP | ADC14_CTL0_ON;
+    ADC14->CTL1 = ADC14_CTL1_RES_3;         // Use sampling timer, 14-bit conversion results
+
+    ADC14->MCTL[0] |= ADC14_MCTLN_INCH_15;   // A15 ADC input select; Vref=AVCC
+    ADC14->IER0 |= ADC14_IER0_IE0;          // Enable ADC conv complete interrupt
+
+    SCB->SCR &= ~SCB_SCR_SLEEPONEXIT_Msk;   // Wake up on exit from ISR
+
+    UART0_init();
+
+    while (1)
+    {
+        for (i = 20000; i > 0; i--);        // Delay
+
+        // Start sampling/conversion
+        ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
+        __sleep();
+
+        __no_operation();                   // For debugger
+
+        if (ADC_flag == 1)
+        {
+            curr_vol = curr_vol / 50;
+
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = curr_vol / 100 + 0x30;          // ones
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = '.';
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = (curr_vol % 100) / 10 + 0x30;   // tenths
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = (curr_vol % 100) % 10 + 0x30 ;  // hundredths
+
+            while(!(EUSCI_A0->IFG & 0x02)) {}   /* wait for transit buffer empty */
+            EUSCI_A0->TXBUF = 0x0A;             /* send a newline char */
+            ADC_flag = 0;
+        }
+    }
+}
+
+
+void ADC14_IRQHandler(void)
+{
+    curr_vol = ADC14->MEM[0];      // ADC12MEM0
+    ADC_flag = 1;
+}
+
+void UART0_init(void)
+{
+    EUSCI_A0->CTLW0 |= 1;
+    EUSCI_A0->MCTLW = 0;
+    EUSCI_A0->CTLW0 = 0x0081;
+    EUSCI_A0->BRW = 26;        // baud rate 115 200 bps
+    P1->SEL0 |= 0x0C;
+    P1->SEL1 &= ~0x0C;
+    EUSCI_A0->CTLW0 &= ~1;
+}
+
+/* delay milliseconds */
+void delayMs(int n) {
+
+    int i, j;
+
+    for (j = 0; j < n; j++)
+        for (i = 300; i > 0; i--);      /* Delay 1 ms*/
+}
