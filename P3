@@ -30,14 +30,17 @@ integrate with console
  
 #include "msp.h"
 #define CYCLESPERMILL 48000
+#define CONST_INCR 1
 
 void delayMs(int n);
 void UART0_init(void);
 
 int total_area = 0;
+int current_count = 0;
 int max = 0;
 int min = 0;
-unsigned int ADC_flag = 0;
+int period = 0;
+unsigned int current_mode = 0;
 
 void main(void)
 {
@@ -45,6 +48,25 @@ void main(void)
 
     WDT_A->CTL = WDT_A_CTL_PW |             // Stop WDT
                  WDT_A_CTL_HOLD;
+                 
+                 
+      CS_CTL0_DCORSEL_5           
+                 
+                 
+    // DCO = 48 MHz, MCLK = DCO, SMCLK = DCO / 16 = 3 MHz
+  CS->KEY = CS_KEY_VAL;
+  CS->CTL0 = 0;
+  CS->CTL0 = CS_CTL0_DCORSEL_4;   // DCO = 24 MHz
+  CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3 | CS_CTL1_DIVHS_4;
+  CS->KEY = 0;
+  
+
+  
+  //timer setup for 48MHz
+  TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+  TIMER_A0->CCR[0] = CONST_INCR;
+  TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
+            TIMER_A_CTL_MC__CONTINUOUS;
 
     // GPIO Setup
     P6->SEL1 |= BIT0;                       // Configure P6.0 for ADC
@@ -54,7 +76,8 @@ void main(void)
     __enable_irq();
 
     // Enable ADC interrupt in NVIC module
-    NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
+    NVIC->ISER[0] = 1 << ((TA0_0_IRQn) & 31);
+
 
     // Sampling time, S&H=16, ADC14 on
     ADC14->CTL0 = ADC14_CTL0_SHT0_2 | ADC14_CTL0_SHP | ADC14_CTL0_ON;
@@ -66,42 +89,50 @@ void main(void)
     SCB->SCR &= ~SCB_SCR_SLEEPONEXIT_Msk;   // Wake up on exit from ISR
 
     UART0_init();
+    
+    for (i = 20000; i > 0; i--);        // Delay
+    
+     // Start sampling/conversion
+        ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC | ADC14_CTL0_CONSEQ_2;
 
     while (1)
     {
-        for (i = 20000; i > 0; i--);        // Delay
 
-        // Start sampling/conversion
-        ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
-        __sleep();
-
-        __no_operation();                   // For debugger
-
-        if (ADC_flag == 1)
+        if (current_count == CYCLESPERMILL)
         {
-            curr_vol = curr_vol / 50;
-
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = curr_vol / 100 + 0x30;          // ones
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = '.';
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = (curr_vol % 100) / 10 + 0x30;   // tenths
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = (curr_vol % 100) % 10 + 0x30 ;  // hundredths
-
-            while(!(EUSCI_A0->IFG & 0x02)) {}   /* wait for transit buffer empty */
-            EUSCI_A0->TXBUF = 0x0A;             /* send a newline char */
-            ADC_flag = 0;
+         current_count = 0;
+         current_mode ++;
+          
         }
     }
 }
 
 
-void ADC14_IRQHandler(void)
-{
-    curr_vol = ADC14->MEM[0];      // ADC12MEM0
-    ADC_flag = 1;
+// Timer A0 interrupt service routine
+
+void TA0_0_IRQHandler(void) {
+    
+    TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+     
+    if (current_mode == 0)
+    {
+        if (ADC14->MEM[0] > max)
+            max = ADC14->MEM[0];
+            
+        if (ADC14->MEM[0] < min)
+            min = ADC14->MEM[0];
+            
+        current_count ++;
+        TIMER_A0->CCR[0] += CONST_INCR;
+    }
+    else if (current_mode == 1)
+    {
+        total_area += ADC14->MEM[0];      // ADC12MEM0
+        current_count ++;
+        TIMER_A0->CCR[0] += CONST_INCR;
+    }
+    
+  
 }
 
 void UART0_init(void)
