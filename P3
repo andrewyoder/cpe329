@@ -28,17 +28,23 @@ integrate with console
 
 #include "msp.h"
 #define CYCLESPERMILL 1500
+#define CYCLESPERSEC 1500000
 #define CONST_INCR 32
 
 void delayMs(int n);
 void UART0_init(void);
 
-int total_area = 0;
+float total_area = 0;
+float total_areasq = 0;
 int current_count = 0;
-int max = 0;
-int min = 0;
-int period = 0;
-unsigned int current_mode = 0;
+int current_countms = 0;
+float max = 0;
+float min = 0;
+int freq = -1;
+float vDC = 0;
+float vACt = 0;
+float vACc = 0;
+unsigned int f_mode = 0;
 
 void main(void)
 {
@@ -50,26 +56,35 @@ void main(void)
 
 
 
-    // DCO = 48 MHz, MCLK = DCO, SMCLK = DCO / 16 = 3 MHz
+    // DCO = 48 MHz, MCLK = DCO = SMCLK
   CS->KEY = CS_KEY_VAL;
   CS->CTL0 = 0;
   CS->CTL0 = CS_CTL0_DCORSEL_5;   // DCO = 48 MHz
-  CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3 | CS_CTL1_DIVHS_4;
+  CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3;
   CS->KEY = 0;
 
 
 
-  //timer1 setup for 48MHz
+  //timer0 setup for 48MHz
   TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
   TIMER_A0->CCR[0] = CONST_INCR;
   TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
             TIMER_A_CTL_MC__CONTINUOUS;
 
-  //timer2 setup for 48MHZ
-  TIMER_A1->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-  TIMER_A1->CCR[0] = CONST_INCR;
-  TIMER_A1->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
-            TIMER_A_CTL_MC__CONTINUOUS;
+  //timer1 setup for 48MHz
+    TIMER_A1->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A1->CCR[0] = CYCLESPERSEC;
+    TIMER_A1->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
+              TIMER_A_CTL_MC__CONTINUOUS;
+
+    //timer2 setup for 48MHz
+      TIMER_A2->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+      TIMER_A2->CCR[0] = CYCLESPERMILL;
+      TIMER_A2->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
+                TIMER_A_CTL_MC__CONTINUOUS;
+
+
+
 
     // GPIO Setup
     P6->SEL1 |= BIT0;                       // Configure P6.0 for ADC
@@ -81,6 +96,7 @@ void main(void)
     // Enable  interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((TA0_0_IRQn) & 31);
     NVIC->ISER[0] = 1 << ((TA1_0_IRQn) & 31);
+    NVIC->ISER[0] = 1 << ((TA2_0_IRQn) & 31);
 
 
     // Sampling time, S&H=16, ADC14 on
@@ -102,49 +118,66 @@ void main(void)
     while (1)
     {
 
-        if (current_count == CYCLESPERMILL)
-        {
-         current_count = 0;
-         current_mode ++;
 
-        }
     }
 }
 
 
 // Timer A0 interrupt service routine
 void TA0_0_IRQHandler(void) {
+    float curr = 0;
 
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+    curr = (ADC14->MEM[0]) / 50;
 
-    if (current_mode == 0)
+    total_area += curr;
+    total_areasq += curr*curr;
+    current_count ++;
+    current_countms ++;
+
+    if (curr > max)
+        max = curr;
+
+    if (curr < min)
+        min = curr;
+
+    if (f_mode == 0 && curr > max - .005)
     {
-        if (ADC14->MEM[0] > max)
-            max = ADC14->MEM[0];
-
-        if (ADC14->MEM[0] < min)
-            min = ADC14->MEM[0];
-
-        current_count ++;
-        TIMER_A0->CCR[0] += CONST_INCR;
+        f_mode ++;
+        freq ++;
     }
-    else if (current_mode == 1)
+    else if (f_mode == 1 && curr < min + .005)
     {
-        total_area += ADC14->MEM[0];      // ADC12MEM0
-        current_count ++;
-        TIMER_A0->CCR[0] += CONST_INCR;
+        f_mode = 0;
     }
 
+    TIMER_A0->CCR[0] += CONST_INCR;
 }
 
-// Timer A0 interrupt service routine
+
 void TA1_0_IRQHandler(void) {
 
     TIMER_A1->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
 
+    vACt = total_areasq/current_count;
+    current_countms = 0;
+    total_areasq = 0;
 
 
+    TIMER_A1->CCR[0] += CYCLESPERSEC;
 }
+
+void TA2_0_IRQHandler(void) {
+
+    TIMER_A2->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+
+    vDC = total_area/current_countms;
+    current_countms = 0;
+    total_area = 0;
+
+    TIMER_A2->CCR[0] += CYCLESPERMILL;
+}
+
 
 
 
@@ -153,11 +186,11 @@ void UART0_init(void)
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST;
     EUSCI_A0->MCTLW &= ~EUSCI_A_MCTLW_OS16;
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SSEL__SMCLK;
-    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_PEN;
-    EUSCI_A0->BRW = 26;        // baud rate 115 200 bps
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_PEN;  //stop bit? 8 bit data?
+    EUSCI_A0->BRW = 417;        // baud rate 115 200 bps
     P1->SEL0 |= 0x0C;
     P1->SEL1 &= ~0x0C;
-    EUSCI_A0->CTLW0 &= ~1;
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST;
 }
 
 /* delay milliseconds */
@@ -168,3 +201,4 @@ void delayMs(int n) {
     for (j = 0; j < n; j++)
         for (i = 300; i > 0; i--);      /* Delay 1 ms*/
 }
+
