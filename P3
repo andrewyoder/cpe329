@@ -19,7 +19,6 @@ integrate with console
 
 
 
-
 /**
  * Prioject 3
  *
@@ -28,8 +27,8 @@ integrate with console
  */
 
 #include "msp.h"
-#define CYCLESPERMILL 12000
-#define CONST_INCR 4
+#define CYCLESPERMILL 1500
+#define CONST_INCR 32
 
 void delayMs(int n);
 void UART0_init(void);
@@ -81,15 +80,15 @@ void main(void)
 
     // Enable  interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((TA0_0_IRQn) & 31);
-    NVIC->ISER[1] = 1 << ((TA1_0_IRQn) & 31);
+    NVIC->ISER[0] = 1 << ((TA1_0_IRQn) & 31);
 
 
-    // Sampling time, S&H=4, ADC14 on
-    ADC14->CTL0 = ADC14_CTL0_SHT0_0 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_CONSEQ_2;
-    ADC14->CTL1 = ADC14_CTL1_RES_3;         // Use sampling timer, 14-bit conversion results
+    // Sampling time, S&H=16, ADC14 on
+    ADC14->CTL0 = ADC14_CTL0_SHT0_2 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_CONSEQ_2;
+    ADC14->CTL1 = ADC14_CTL1_RES_3;         // Use sampling timer, 14-bit conversion results(16)
 
     ADC14->MCTL[0] |= ADC14_MCTLN_INCH_15;   // A15 ADC input select; Vref=AVCC
-    ADC14->IER0 |= ADC14_IER0_IE0;          // Enable ADC conv complete interrupt
+    //ADC14->IER0 |= ADC14_IER0_IE0;           Enable ADC conv complete interrupt
 
     SCB->SCR &= ~SCB_SCR_SLEEPONEXIT_Msk;   // Wake up on exit from ISR
 
@@ -151,9 +150,10 @@ void TA1_0_IRQHandler(void) {
 
 void UART0_init(void)
 {
-    EUSCI_A0->CTLW0 |= 1;
-    EUSCI_A0->MCTLW = 0;
-    EUSCI_A0->CTLW0 = 0x0081;
+    EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST;
+    EUSCI_A0->MCTLW &= ~EUSCI_A_MCTLW_OS16;
+    EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SSEL__SMCLK;
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_PEN;
     EUSCI_A0->BRW = 26;        // baud rate 115 200 bps
     P1->SEL0 |= 0x0C;
     P1->SEL1 &= ~0x0C;
