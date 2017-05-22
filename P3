@@ -116,6 +116,8 @@ void main(void)
     // Start sampling/conversion
         ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
 
+    terminal_init();
+
     while (1)
     {
         pk2pk = max - min;
@@ -158,13 +160,15 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 13;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = '4';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
     if (voltType == 0) {
         while (!(EUSCI_A0->IFG & 0x02)){}
@@ -184,13 +188,15 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 1;
+    EUSCI_A0->TXBUF = '2';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 13;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = '4';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
     write_freq();
 
@@ -200,13 +206,15 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 2;
+    EUSCI_A0->TXBUF = '3';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 13;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = '4';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
     send_voltage((int)vDC*1000);
 
@@ -216,13 +224,15 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 3;
+    EUSCI_A0->TXBUF = '4';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 13;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = '4';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
     send_voltage((int)pk2pk*1000);
 
@@ -232,13 +242,15 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 4;
+    EUSCI_A0->TXBUF = '5';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 13;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = '4';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
     send_voltage((int)trueRMS*1000);
 
@@ -248,13 +260,15 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 5;
+    EUSCI_A0->TXBUF = '6';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 13;
+    EUSCI_A0->TXBUF = '1';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = '4';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
     send_voltage((int)calcRMS*1000);
 
@@ -264,13 +278,13 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 6;
+    EUSCI_A0->TXBUF = '7';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 4;
+    EUSCI_A0->TXBUF = '5';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
+    EUSCI_A0->TXBUF = 'H';
 
     write_bar(vDC);
 
@@ -280,14 +294,14 @@ void write_to_term(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 7;
+    EUSCI_A0->TXBUF = '8';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ';';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 4;
+    EUSCI_A0->TXBUF = '5';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 'f';
-
+    EUSCI_A0->TXBUF = 'H';
+    
     write_bar(trueRMS);
 }
 
@@ -335,7 +349,7 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 0x5B;       // [
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 2;
+    EUSCI_A0->TXBUF = '2';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 'J';
 
@@ -377,8 +391,14 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
 
     /* "Freq:       " */
     while (!(EUSCI_A0->IFG & 0x02)){}
@@ -420,8 +440,14 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = 'H';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 'z';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
 
 
     /* "DC Offset:  " */
@@ -461,11 +487,15 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
-    while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 'V';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
 
 
     /* "Peak-Peak:  " */
@@ -506,8 +536,14 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 'V';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
 
 
     /* "True RMS:   " */
@@ -548,8 +584,14 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 'V';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
 
 
     /* "Calc RMS:   " */
@@ -590,8 +632,14 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = 'V';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
 
 
     /* "DC: " */
@@ -623,8 +671,15 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
+
+    /* move to next line */
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'E';
+
 
     /* "AC: " */
     while (!(EUSCI_A0->IFG & 0x02)){}
@@ -655,8 +710,7 @@ void terminal_init(void)
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
-    while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = 0x0A;    // new line
+
 }
 
 
