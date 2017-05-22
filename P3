@@ -20,78 +20,77 @@ integrate with console
 
 
 /**
- * Prioject 3
+ * Project 3 - Digital Multimeter
  *
  * Carlos Hernandez, Andrew Yoder
- * May 11, 2017
+ * May 20, 2017
  */
 
 #include "msp.h"
 #include <math.h>
+
 #define CYCLESPERMILL 1500
-#define CYCLESPERSEC 1500000
+#define CYCLESPERSEC  1500000
 #define CONST_INCR 32
 
+void terminal_init(void);
+void write_to_term(void);
+void write_freq(void);
+void send_voltage(int n);
+void write_bar(float n);
 void delayMs(int n);
 void UART0_init(void);
 
-float total_area = 0;
-float total_areasq = 0;
-int current_count = 0;
-int current_countms = 0;
-float max = 0;
-float min = 0;
-int freq = -1;
-float vDC = 0;
-float vACt = 0;
-float vACc = 0;
-unsigned int f_mode = 0;
+float total_area = 0;       // sum of voltages for dc calculation
+float total_areasq = 0;     // squared sum of voltages for ac calc
+int timer1_count = 0;       // number of samples for dc calculation
+int timer2_count = 0;       // number of samples for ac calculation
+float max = 0;              // max voltage
+float min = 0;              // min voltage
+int freq = -1;              // frequency, as an accumulated sum
+float vDC = 0;              // dc voltage
+float trueRMS_unsq = 0;     // incomplete RMS (from ISR)
+float trueRMS = 0;          // actual RMS (updated in main)
+float calcRMS = 0;          // calculated RMS (trueRMS - vDC)
+float pk2pk = 0;
+unsigned int f_mode = 0;    // 0 (min to max) or 1 (max to min)
+int voltType = 0;           // 0 is dc, 1 is ac
+
 
 void main(void)
 {
     volatile unsigned int i;
-    float pk_pk = 0;
-    float vACt2 = 0;
-    int temp = 0;
 
     WDT_A->CTL = WDT_A_CTL_PW |             // Stop WDT
                  WDT_A_CTL_HOLD;
 
-
-
-
     // DCO = 48 MHz, MCLK = DCO = SMCLK
-  CS->KEY = CS_KEY_VAL;
-  CS->CTL0 = 0;
-  CS->CTL0 = CS_CTL0_DCORSEL_5;   // DCO = 48 MHz
-  CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3;
-  CS->KEY = 0;
+    CS->KEY = CS_KEY_VAL;
+    CS->CTL0 = 0;
+    CS->CTL0 = CS_CTL0_DCORSEL_5;   // DCO = 48 MHz
+    CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3;
+    CS->KEY = 0;
 
+    //timer0 setup for 48MHz
+    TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE;    // TACCR0 interrupt enabled
+    TIMER_A0->CCR[0] = CONST_INCR;
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |  // SMCLK, continuous mode
+                    TIMER_A_CTL_MC__CONTINUOUS;
 
-
-  //timer0 setup for 48MHz
-  TIMER_A0->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-  TIMER_A0->CCR[0] = CONST_INCR;
-  TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
-            TIMER_A_CTL_MC__CONTINUOUS;
-
-  //timer1 setup for 48MHz
-    TIMER_A1->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    //timer1 setup for 48MHz
+    TIMER_A1->CCTL[0] = TIMER_A_CCTLN_CCIE;    // TACCR0 interrupt enabled
     TIMER_A1->CCR[0] = CYCLESPERSEC;
-    TIMER_A1->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
-              TIMER_A_CTL_MC__CONTINUOUS;
+    TIMER_A1->CTL = TIMER_A_CTL_SSEL__SMCLK |  // SMCLK, continuous mode
+                    TIMER_A_CTL_MC__CONTINUOUS;
 
     //timer2 setup for 48MHz
-      TIMER_A2->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-      TIMER_A2->CCR[0] = CYCLESPERMILL;
-      TIMER_A2->CTL = TIMER_A_CTL_SSEL__SMCLK | // SMCLK, continuous mode
-                TIMER_A_CTL_MC__CONTINUOUS;
-
-
-
+    TIMER_A2->CCTL[0] = TIMER_A_CCTLN_CCIE;    // TACCR0 interrupt enabled
+    TIMER_A2->CCR[0] = CYCLESPERMILL;
+    TIMER_A2->CTL = TIMER_A_CTL_SSEL__SMCLK |  // SMCLK, continuous mode
+                    TIMER_A_CTL_MC__CONTINUOUS;
 
     // GPIO Setup
-    P6->SEL1 |= BIT0;                       // Configure P6.0 for ADC
+    P6->SEL1 |= BIT0;    // Configure P6.0 for ADC
     P6->SEL0 |= BIT0;
 
     // Enable global interrupt
@@ -101,7 +100,6 @@ void main(void)
     NVIC->ISER[0] = 1 << ((TA0_0_IRQn) & 31);
     NVIC->ISER[0] = 1 << ((TA1_0_IRQn) & 31);
     NVIC->ISER[0] = 1 << ((TA2_0_IRQn) & 31);
-
 
     // Sampling time, S&H=16, ADC14 on
     ADC14->CTL0 = ADC14_CTL0_SHT0_2 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_CONSEQ_2;
@@ -115,69 +113,550 @@ void main(void)
     UART0_init();
 
     for (i = 20000; i > 0; i--);        // Delay
-
-     // Start sampling/conversion
+    // Start sampling/conversion
         ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
 
     while (1)
     {
-        pk_pk = max - min;
+        pk2pk = max - min;
 
-        if (pk_pk >= 0.5)
+        if (pk2pk < 0.5)  // DC
         {
-            //AC
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = 0x1B[2J; //clear
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = 0x1B[H; // cursor home
-            Esc[2J
-            vACt2 = sqrt(vACt);
-            vACc = vACt2 - vDC;
-            send_voltage(vACt2*1000);
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = ' ';
-            send_voltage(vACc*1000);
-            while (!(EUSCI_A0->IFG & 0x02)){}
-            EUSCI_A0->TXBUF = ' ';
-            send_voltage(freq*1000);
-        }
-        else
-        {
-            send_voltage(vDC*1000);
-
-            vDC
+            trueRMS = 0;
+            calcRMS = 0;
+            pk2pk = 0;
+        } else {          // AC
+            trueRMS = sqrt(trueRMS_unsq);
+            calcRMS = trueRMS - vDC;
         }
 
-
-
+        write_to_term();
     }
 }
 
+
 /*
- *
- * Esc[ValueA   Move cursor up n lines  CUU
+Esc[ValueA   Move cursor up n lines  CUU
 Esc[ValueB  Move cursor down n lines    CUD
 Esc[ValueC  Move cursor right n lines   CUF
 Esc[ValueD  Move cursor left n lines    CUB
- *
- *
- */
+*/
 
+void write_to_term(void)
+{
+    /* cursor home */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
 
+    /* position for voltType (line 0, col 13) */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 13;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    if (voltType == 0) {
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'D';
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'C';
+    } else if (voltType == 1) {
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'A';
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = 'C';
+    }
+
+    /* position for freq */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 1;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 13;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    write_freq();
+
+    /* position for DC Offset */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 2;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 13;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    send_voltage((int)vDC*1000);
+
+    /* position for Peak-Peak */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 3;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 13;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    send_voltage((int)pk2pk*1000);
+
+    /* position for True RMS */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 4;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 13;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    send_voltage((int)trueRMS*1000);
+
+    /* position for Calc RMS */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 5;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 13;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    send_voltage((int)calcRMS*1000);
+
+    /* position for DC Bar */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 6;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 4;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    write_bar(vDC);
+
+    /* position for AC Bar */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 7;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ';';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 4;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+
+    write_bar(trueRMS);
+}
+
+void write_freq(void)
+{
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = freq / 1000;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = freq / 100;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = freq / 10;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = freq / 1;
+}
 
 void send_voltage(int curr_vol)
 {
     while (!(EUSCI_A0->IFG & 0x02)){}
-       EUSCI_A0->TXBUF = curr_vol / 1000 + 0x30;          // ones
-       while (!(EUSCI_A0->IFG & 0x02)){}
-       EUSCI_A0->TXBUF = '.';
-       while (!(EUSCI_A0->IFG & 0x02)){}
-       EUSCI_A0->TXBUF = (curr_vol % 1000) / 100 + 0x30;   // tenths
-       while (!(EUSCI_A0->IFG & 0x02)){}
-       EUSCI_A0->TXBUF = (curr_vol % 100) /10  + 0x30 ;  // hundredths
-       while (!(EUSCI_A0->IFG & 0x02)){}
-       EUSCI_A0->TXBUF = (curr_vol % 10)  + 0x30 ;  // thousands
+    EUSCI_A0->TXBUF = curr_vol / 1000 + 0x30;          // ones
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '.';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ((curr_vol % 1000) / 100) + 0x30;  // tenths
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ((curr_vol % 100) / 10) + 0x30 ;  // hundredths
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ((curr_vol % 10) / 1) + 0x30 ;    // thousandths
+}
 
+void write_bar(float voltage)
+{
+    int count = voltage / 0.1;
+    while (count > 0) {
+        while (!(EUSCI_A0->IFG & 0x02)){}
+        EUSCI_A0->TXBUF = '-';
+    }
+}
+
+
+void terminal_init(void)
+{
+    /* clear */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 2;
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'J';
+
+    /* cursor home */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x1B;       // esc
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x5B;       // [
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
+
+    /* "Voltage:    " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'V';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'o';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'l';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 't';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'a';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'g';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'e';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+    /* "Freq:       " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'F';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'r';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'e';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'q';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'H';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'z';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+
+    /* "DC Offset:  " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'D';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'C';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'O';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'f';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 's';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'e';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 't';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '.';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'V';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+
+    /* "Peak-Peak:  " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'P';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'e';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'a';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'k';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '-';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'P';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'e';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'a';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'k';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '.';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'V';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+
+    /* "True RMS:   " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'T';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'r';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'u';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'e';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'R';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'M';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'S';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '.';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'V';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+
+    /* "Calc RMS:   " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'C';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'a';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'l';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'c';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'R';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'M';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'S';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '.';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'V';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+
+    /* "DC: " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'D';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'C';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
+
+    /* "AC: " */
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'A';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 'C';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ':';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = ' ';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = 0x0A;    // new line
 }
 
 
@@ -190,8 +669,8 @@ void TA0_0_IRQHandler(void) {
 
     total_area += curr;
     total_areasq += curr*curr;
-    current_count ++;
-    current_countms ++;
+    timer1_count ++;
+    timer2_count ++;
 
     if (curr > max)
         max = curr;
@@ -202,7 +681,7 @@ void TA0_0_IRQHandler(void) {
     if (f_mode == 0 && curr > max - .005)
     {
         f_mode ++;
-        freq ++;
+        freq ++;    // 1 complete period
     }
     else if (f_mode == 1 && curr < min + .005)
     {
@@ -212,31 +691,29 @@ void TA0_0_IRQHandler(void) {
     TIMER_A0->CCR[0] += CONST_INCR;
 }
 
-
+// Timer A1, set for 1 sec to update all values
 void TA1_0_IRQHandler(void) {
 
     TIMER_A1->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
 
-    vACt = total_areasq/current_count;
-    current_countms = 0;
+    trueRMS_unsq = total_areasq/timer1_count;
     total_areasq = 0;
-
+    timer1_count = 0;
 
     TIMER_A1->CCR[0] += CYCLESPERSEC;
 }
 
+// Timer A2, set for 1 ms to update DC value
 void TA2_0_IRQHandler(void) {
 
     TIMER_A2->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
 
-    vDC = total_area/current_countms;
-    current_countms = 0;
+    vDC = total_area/timer2_count;
     total_area = 0;
+    timer2_count = 0;
 
     TIMER_A2->CCR[0] += CYCLESPERMILL;
 }
-
-
 
 
 void UART0_init(void)
@@ -252,6 +729,3 @@ void UART0_init(void)
     P1->SEL1 &= ~0x0C;
     EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST;
 }
-
-
-
