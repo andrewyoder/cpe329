@@ -126,10 +126,19 @@ void main(void)
         if (pk_pk >= 0.5)
         {
             //AC
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = 0x1B[2J; //clear
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = 0x1B[H; // cursor home
+            Esc[2J
             vACt2 = sqrt(vACt);
             vACc = vACt2 - vDC;
             send_voltage(vACt2*1000);
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = ' ';
             send_voltage(vACc*1000);
+            while (!(EUSCI_A0->IFG & 0x02)){}
+            EUSCI_A0->TXBUF = ' ';
             send_voltage(freq*1000);
         }
         else
@@ -143,6 +152,16 @@ void main(void)
 
     }
 }
+
+/*
+ *
+ * Esc[ValueA   Move cursor up n lines  CUU
+Esc[ValueB  Move cursor down n lines    CUD
+Esc[ValueC  Move cursor right n lines   CUF
+Esc[ValueD  Move cursor left n lines    CUB
+ *
+ *
+ */
 
 
 
@@ -233,5 +252,6 @@ void UART0_init(void)
     P1->SEL1 &= ~0x0C;
     EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST;
 }
+
 
 
