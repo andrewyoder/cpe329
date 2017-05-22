@@ -27,6 +27,7 @@ integrate with console
  */
 
 #include "msp.h"
+#include <math.h>
 #define CYCLESPERMILL 1500
 #define CYCLESPERSEC 1500000
 #define CONST_INCR 32
@@ -49,6 +50,9 @@ unsigned int f_mode = 0;
 void main(void)
 {
     volatile unsigned int i;
+    float pk_pk = 0;
+    float vACt2 = 0;
+    int temp = 0;
 
     WDT_A->CTL = WDT_A_CTL_PW |             // Stop WDT
                  WDT_A_CTL_HOLD;
@@ -117,9 +121,44 @@ void main(void)
 
     while (1)
     {
+        pk_pk = max - min;
+
+        if (pk_pk >= 0.5)
+        {
+            //AC
+            vACt2 = sqrt(vACt);
+            vACc = vACt2 - vDC;
+            send_voltage(vACt2*1000);
+            send_voltage(vACc*1000);
+            send_voltage(freq*1000);
+        }
+        else
+        {
+            send_voltage(vDC*1000);
+
+            vDC
+        }
+
 
 
     }
+}
+
+
+
+void send_voltage(int curr_vol)
+{
+    while (!(EUSCI_A0->IFG & 0x02)){}
+       EUSCI_A0->TXBUF = curr_vol / 1000 + 0x30;          // ones
+       while (!(EUSCI_A0->IFG & 0x02)){}
+       EUSCI_A0->TXBUF = '.';
+       while (!(EUSCI_A0->IFG & 0x02)){}
+       EUSCI_A0->TXBUF = (curr_vol % 1000) / 100 + 0x30;   // tenths
+       while (!(EUSCI_A0->IFG & 0x02)){}
+       EUSCI_A0->TXBUF = (curr_vol % 100) /10  + 0x30 ;  // hundredths
+       while (!(EUSCI_A0->IFG & 0x02)){}
+       EUSCI_A0->TXBUF = (curr_vol % 10)  + 0x30 ;  // thousands
+
 }
 
 
@@ -128,7 +167,7 @@ void TA0_0_IRQHandler(void) {
     float curr = 0;
 
     TIMER_A0->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
-    curr = (ADC14->MEM[0]) / 50;
+    curr = (ADC14->MEM[0]) / 5000;
 
     total_area += curr;
     total_areasq += curr*curr;
@@ -186,19 +225,13 @@ void UART0_init(void)
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST;
     EUSCI_A0->MCTLW &= ~EUSCI_A_MCTLW_OS16;
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SSEL__SMCLK;
-    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_PEN;  //stop bit? 8 bit data?
-    EUSCI_A0->BRW = 417;        // baud rate 115 200 bps
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_PEN;
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SEVENBIT;
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SPB;
+    EUSCI_A0->BRW = 417;        // baud rate 115 200 bps (48 000 000 / 115 200)
     P1->SEL0 |= 0x0C;
     P1->SEL1 &= ~0x0C;
     EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST;
 }
 
-/* delay milliseconds */
-void delayMs(int n) {
-
-    int i, j;
-
-    for (j = 0; j < n; j++)
-        for (i = 300; i > 0; i--);      /* Delay 1 ms*/
-}
 
