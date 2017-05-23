@@ -442,9 +442,13 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
@@ -490,11 +494,15 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = '.';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
@@ -538,11 +546,15 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = '.';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
@@ -586,11 +598,15 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = '.';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
@@ -634,11 +650,15 @@ void terminal_init(void)
     while (!(EUSCI_A0->IFG & 0x02)){}  // value placeholder
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = '.';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
-    EUSCI_A0->TXBUF = ' ';
+    EUSCI_A0->TXBUF = '0';
+    while (!(EUSCI_A0->IFG & 0x02)){}
+    EUSCI_A0->TXBUF = '0';
     while (!(EUSCI_A0->IFG & 0x02)){}
     EUSCI_A0->TXBUF = ' ';
     while (!(EUSCI_A0->IFG & 0x02)){}
