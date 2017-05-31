@@ -40,13 +40,10 @@ int main(void)
     CS->KEY = 0;
 
     keypad_init();
-
-    // Enable global interrupt
-//    __enable_irq();
-//
-//    NVIC->ISER[0] = 1 << ((TA0_0_IRQn) & 31);
-
-
+    
+    // enable P5.6 to PWM output
+    P5->SEL1 |= BIT6;
+    P5->SEL0 |= BIT6;
 
     while (1) {
         key = keypad_getkey();
@@ -92,21 +89,10 @@ void updatePos(int input) {
 }
 
 
-// update pulse width
+// update pulse width, .75ms to 2.25ms in 20ms period
 void updateWidth(void) {
     TIMER_A2->CCR[1] = CONST_INCR - (2252 + (250*curSpot));
 }
-
-
-//// Timer A2 ISR
-//void TA2_0_IRQHandler(void) {
-//
-//    TIMER_A2->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
-//
-//
-//    TIMER_A2->CCR[1] +=
-//    TIMER_A2->CCR[0] += CONST_INCR;
-//}
 
 
 int keypad_getkey(void)
