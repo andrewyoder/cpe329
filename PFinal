@@ -12,7 +12,8 @@
 //****************************************************************************
 
 
-// NEED TO WRITE IRQ FOR CONVERTING VALUES TO ADC ON SCLK RISING EDGE (160 kHz)
+// NEED TO WRITE TIMER FOR SCLK (160 kHz)
+// AND ALSO SETS newMeas = 1 
 
 
 #include "msp.h"
