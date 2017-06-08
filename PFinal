@@ -24,13 +24,13 @@ void equalizer_init(void);
 void lcd_init(void);
 
 
-unsigned float band_63;     // value for 63 Hz band
-unsigned float band_160;    // value for 160 Hz band
-unsigned float band_400;    // value for 400 Hz band
-unsigned float band_1k;     // value for 1 kHz band
-unsigned float band_2k;     // value for 2.5 kHz band
-unsigned float band_6k;     // value for 6.25 kHz band
-unsigned float band_16k;    // value for 16 kHz band
+unsigned int band_63;     // value for 63 Hz band
+unsigned int band_160;    // value for 160 Hz band
+unsigned int band_400;    // value for 400 Hz band
+unsigned int band_1k;     // value for 1 kHz band
+unsigned int band_2k;     // value for 2.5 kHz band
+unsigned int band_6k;     // value for 6.25 kHz band
+unsigned int band_16k;    // value for 16 kHz band
 unsigned int curBand = 0;   // integer representing band being updated
 unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
 
