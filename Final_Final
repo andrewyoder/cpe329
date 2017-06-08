@@ -159,7 +159,7 @@ void lcd_init(void) {
 
 void send_lcd(void)
 {
-    int i;
+    int i, j, k = 0;
     int band_0 = band_63 / 586;     // value for 63 Hz band
     int band_1 = band_160 / 586;    // value for 160 Hz band
     int band_2 = band_400 / 586;    // value for 400 Hz band
@@ -174,70 +174,148 @@ void send_lcd(void)
 
     //instruction
     P5->OUT &= ~BIT2; //instruction on
-    //spi send instruction
-
+    0x21;    //extended inst
+    0x90;    //set Vop
+    0x22;    //normal inst with vertical addressing
+    0x0C;    //normal display mode
+    0x47;    //bottom Y block
+    0x80;    //most left x block/column
 
     //data band 0
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0x80 + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_0; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    0x47;    //bottom Y block
+    0x8C;    //x
     //data band 1
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0x8C + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_1; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    0x47;    //bottom Y block
+    0x98;    //x
     //data band 2
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0x98 + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_2; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    0x47;    //bottom Y block
+    0xA4;    //x
     //data band 3
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0xA4 + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_3; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
+
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    0x47;    //bottom Y block
+    0xB0;    //x
     //data band 4
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0xB0 + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_4; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    0x47;    //bottom Y block
+    0xBC;    //x
     //data band 5
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0xBC + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_5; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
 
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    0x47;    //bottom Y block
+    0xC8;    //x
     //data band 6
     for(i=0; i <12; i++)
     {
+        //instruction
+        P5->OUT &= ~BIT2; //instruction on
+        0x47;    //bottom Y block
+        0xC8 + i;    //x
 
         P5->OUT |= BIT2; //data on
-        //spi send instruction
+        for(j = 0; j < band_6; j++)
+        {
+            0xFF; //spi send instruction
+        }
 
     }
 
