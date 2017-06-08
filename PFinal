@@ -11,6 +11,10 @@
 //
 //****************************************************************************
 
+
+// NEED TO WRITE IRQ FOR CONVERTING VALUES TO ADC ON SCLK RISING EDGE (160 kHz)
+
+
 #include "msp.h"
 
 
@@ -19,10 +23,27 @@ void equalizer_init(void);
 void lcd_init(void);
 
 
+unsigned float band_63;     // value for 63 Hz band
+unsigned float band_160;    // value for 160 Hz band
+unsigned float band_400;    // value for 400 Hz band
+unsigned float band_1k;     // value for 1 kHz band
+unsigned float band_2k;     // value for 2.5 kHz band
+unsigned float band_6k;     // value for 6.25 kHz band
+unsigned float band_16k;    // value for 16 kHz band
+unsigned int curBand = 0;   // integer representing band being updated
+unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
+
+
 void main(void)
 {
 
     WDTCTL = WDTPW | WDTHOLD;           // Stop watchdog timer
+
+    CS->CTL0 = CS_CTL0_DCORSEL_4;   // DCO = 24 MHz
+
+    // Timer for 160 kHz SPI CLK to LCD
+    TIMER_A2->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A2->CCR[0] = 75;  // set/reset every 75 clock cycles for 160 kHz CLK
 
     // Enable global interrupt
     __enable_irq();
@@ -30,19 +51,17 @@ void main(void)
     // Enable ADC interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
 
-    // Sampling time, S&H=16, ADC14 on
-    ADC14->CTL0 = ADC14_CTL0_SHT0_2 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_MSC | ADC14_CTL0_CONSEQ_2;
+    // Sampling time, S&H=4, ADC14 on
+    ADC14->CTL0 = ADC14_CTL0_SHT0_0 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_MSC | ADC14_CTL0_CONSEQ_2;
     ADC14->CTL1 = ADC14_CTL1_RES_2;         // Use sampling timer, 12-bit conversion results
 
-    ADC14->MCTL[0] |= ADC14_MCTLN_INCH_1;   // A1 ADC input select; Vref=AVCC
+    ADC14->MCTL[0] |= ADC14_MCTLN_INCH_15;  // A15 ADC input select; Vref=AVCC
     ADC14->IER0 |= ADC14_IER0_IE0;          // Enable ADC conv complete interrupt
 
     SCB->SCR &= ~SCB_SCR_SLEEPONEXIT_Msk;   // Wake up on exit from ISR
 
     // Start sampling/conversion
     ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
-
-
 
 
     somi_init();
@@ -129,6 +148,44 @@ void lcd_init(void) {
 
 // ADC14 interrupt service routine
 void ADC14_IRQHandler(void) {
-    
-    ADC14->MEM[0]  = current;
+
+    if (newMeas)
+    {
+        if (curBand == 0)
+        {
+            band_63 = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 1)
+        {
+            band_160 = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 2)
+        {
+            band_400 = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 3)
+        {
+            band_1k = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 4)
+        {
+            band_2k = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 5)
+        {
+            band_6k = ADC14->MEM[0];
+            curBand++;
+        }
+        else
+        {
+            band_16k = ADC14->MEM[0];
+            curBand = 0;
+        }
+        newMeas = 0;
+    }
 }
