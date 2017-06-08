@@ -1,0 +1,295 @@
+//*****************************************************************************
+//
+// CPE 329-11
+// Spring 2017
+// Final Project - Visual Equalizer
+//
+// June 8, 2017
+//
+// Andrew Yoder
+// Carlos Hernandez
+//
+//****************************************************************************
+
+
+// NEED TO WRITE TIMER FOR SCLK (160 kHz)
+// AND ALSO SETS newMeas = 1
+
+
+#include "msp.h"
+
+
+void somi_init(void);
+void equalizer_init(void);
+void lcd_init(void);
+void send_lcd(void);
+
+
+ int band_63;     // value for 63 Hz band
+ int band_160;    // value for 160 Hz band
+ int band_400;    // value for 400 Hz band
+ int band_1k;     // value for 1 kHz band
+ int band_2k;     // value for 2.5 kHz band
+ int band_6k;     // value for 6.25 kHz band
+ int band_16k;    // value for 16 kHz band
+unsigned int curBand = 0;   // integer representing band being updated
+unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
+
+
+void main(void)
+{
+
+    WDTCTL = WDTPW | WDTHOLD;           // Stop watchdog timer
+
+    CS->CTL0 = CS_CTL0_DCORSEL_4;   // DCO = 24 MHz
+
+    // Timer for 160 kHz SPI CLK to LCD
+    TIMER_A0->CCTL[4] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A0->CCR[4] = 75;  // set/reset every 75 clock cycles for 160 kHz CLK
+
+    // Timer for strobe
+    TIMER_A0->CCTL[2] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
+    TIMER_A0->CCR[2] = 17143;  // set/reset for 700 Hz CLK
+    TIMER_A0->CCTLN |= TIMER_A_CCTLN_CM_2; //capture on falling edge
+
+    // Enable global interrupt
+    __enable_irq();
+
+    // Enable ADC interrupt in NVIC module
+    NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
+
+    // Sampling time, S&H=4, ADC14 on
+    ADC14->CTL0 = ADC14_CTL0_SHT0_0 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_MSC | ADC14_CTL0_CONSEQ_2;
+    ADC14->CTL1 = ADC14_CTL1_RES_2;         // Use sampling timer, 12-bit conversion results
+
+    ADC14->MCTL[0] |= ADC14_MCTLN_INCH_15;  // A15 ADC input select; Vref=AVCC
+    ADC14->IER0 |= ADC14_IER0_IE0;          // Enable ADC conv complete interrupt
+
+    SCB->SCR &= ~SCB_SCR_SLEEPONEXIT_Msk;   // Wake up on exit from ISR
+
+    // Start sampling/conversion
+    ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
+
+
+    somi_init();
+    equalizer_init();
+    lcd_init();
+
+    while(1)
+    {
+        send_lcd();
+
+    }
+
+}
+
+
+void somi_init(void) {
+
+    // disable for configuration
+    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_SWRST;
+
+    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_STEM |       // STE (P1.4) is enable signal
+                      EUSCI_B_CTLW0_SYNC |       // synchronous mode for SPI
+                      EUSCI_B_CTLW0_UCSSEL_2 |   // SMCLK
+                      EUSCI_B_CTLW0_MST |        // master mode
+                      EUSCI_B_CTLW0_SEVENBIT |   // 7-bit characters
+                      EUSCI_B_CTLW0_MSB |        // MSB sent first
+                      EUSCI_B_CTLW0_MODE_2;      // 4-pin SPI with STE low active
+
+    // enable to receive/transmit data
+    EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST;
+}
+
+void equalizer_init(void) {
+
+    // MCLK from P4.3
+    P4->DIR |= BIT3;
+    P4->SEL1 &= ~BIT3;
+    P4->SEL0 |= BIT3;
+
+    // rst from P2.6
+    P2->DIR |= BIT6;
+
+    // vref from P5.6
+    P5->SEL1 |= BIT6;
+    P5->SEL0 |= BIT6;
+
+    // analog out to P6.0
+    P6->DIR &= ~BIT0;
+    P6->SEL1 |= BIT0;
+    P6->SEL0 |= BIT0;
+
+    // strobe from TA0.2, P2.5
+    P2->DIR |= BIT5;
+    P2->SEL1 &= ~BIT5;
+    P2->SEL0 |= BIT5;
+}
+
+void lcd_init(void) {
+
+    // lcd_sce from P5.0
+    P5->DIR |= BIT0;
+    P5->OUT |= BIT0;   // active low, so set
+    P5->SEL1 &= ~BIT0;
+    P5->SEL0 &= ~BIT0;
+
+    // lcd_rst from P2.4
+    P2->DIR |= BIT4;
+    P2->SEL1 &= ~BIT4;
+    P2->SEL0 &= ~BIT4;
+
+    // lcd_dc from P5.2
+    P5->DIR |= BIT2;
+    P5->OUT &= ~BIT2;   // command low, data high
+    P5->SEL1 &= ~BIT2;
+    P5->SEL0 &= ~BIT2;
+
+    // sclk from P1.5
+    // direction controlled by eUSCI_B0 module
+    P1->SEL1 &= ~BIT5;
+    P1->SEL0 |= BIT5;
+
+    // SIMO from SOMI, P1.7
+    // direction controlled by eUSCI_B0 module
+    P1->SEL1 &= ~BIT7;
+    P1->SEL0 |= BIT7;
+}
+
+
+void send_lcd(void)
+{
+    int i;
+    int band_0 = band_63 / 586;     // value for 63 Hz band
+    int band_1 = band_160 / 586;    // value for 160 Hz band
+    int band_2 = band_400 / 586;    // value for 400 Hz band
+    int band_3 = band_1k / 586;     // value for 1 kHz band
+    int band_4 = band_2k / 586;     // value for 2.5 kHz band
+    int band_5 = band_6k / 586;     // value for 6.25 kHz band
+    int band_6 = band_16k / 586;    // value for 16 kHz band
+
+
+
+    P5->OUT &= ~BIT0; //start
+
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    //spi send instruction
+
+
+    //data band 0
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+    //data band 1
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+    //data band 2
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+    //data band 3
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+    //data band 4
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+    //data band 5
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+
+    //data band 6
+    for(i=0; i <12; i++)
+    {
+
+        P5->OUT |= BIT2; //data on
+        //spi send instruction
+
+    }
+
+
+
+    P5->OUT |= BIT0; //end
+
+}
+
+
+
+
+// ADC14 interrupt service routine
+void ADC14_IRQHandler(void) {
+
+    if (newMeas)
+    {
+        if (curBand == 0)
+        {
+            band_63 = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 1)
+        {
+            band_160 = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 2)
+        {
+            band_400 = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 3)
+        {
+            band_1k = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 4)
+        {
+            band_2k = ADC14->MEM[0];
+            curBand++;
+        }
+        else if (curBand == 5)
+        {
+            band_6k = ADC14->MEM[0];
+            curBand++;
+        }
+        else
+        {
+            band_16k = ADC14->MEM[0];
+            curBand = 0;
+        }
+        newMeas = 0;
+    }
+}
