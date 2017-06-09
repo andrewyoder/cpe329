@@ -121,8 +121,8 @@ void ADC14_IRQHandler(void) {
 
 
 // timer for equalizer strobe
-void TA1_0_IRQHandler(void) {
-    TIMER_A1->CCTL[0] &= ~TIMER_A_CCTLN_CCIFG;
+void TA0_2_IRQHandler(void) {
+    TIMER_A0->CCTL[2] &= ~TIMER_A_CCTLN_CCIFG;
 
     if (strobeH==1) {
         P2->OUT &= ~BIT5;   // strobe low
@@ -133,7 +133,7 @@ void TA1_0_IRQHandler(void) {
         strobeH = 1;
     }
 
-    TIMER_A1->CCR[0] += 17143;
+    TIMER_A0->CCR[2] += 17143;
 }
 
 void adc_init(void) {
@@ -206,7 +206,7 @@ void somi_init(void) {
 
 void equalizer_init(void) {
 
-    // MCLK from P4.3
+    // CLK from P2.7 (160 kHz)
     P4->DIR |= BIT3;
     P4->SEL1 &= ~BIT3;
     P4->SEL0 |= BIT3;
@@ -248,10 +248,10 @@ void lcd_init(void) {
     P5->SEL1 &= ~BIT2;
     P5->SEL0 &= ~BIT2;
 
-    // sclk from P6.7
-    P6->DIR |= BIT7;
-    P6->SEL1 &= ~BIT7;
-    P6->SEL0 |= BIT7;
+    // sclk from P2.7 (160 kHz)
+    P2->DIR |= BIT7;
+    P2->SEL1 &= ~BIT7;
+    P2->SEL0 |= BIT7;
 
     // SIMO from SOMI, P1.7
     // direction controlled by eUSCI_B0 module
