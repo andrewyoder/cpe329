@@ -155,12 +155,12 @@ void adc_init(void) {
 
 
 void timers_init(void) {
-    // Timer for LCD clk 160 kHz, Timer A2
-    TIMER_A2->CCR[3] = 75;                        // toggle flag
-    TIMER_A2->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle
+    // Timer for LCD, equalizer clk 160 kHz, Timer A0.4
+    TIMER_A0->CCR[4] = 75;                        // toggle flag
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle
                     TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4;
 
-    // Timer for strobe, Timer A0
+    // Timer for strobe, Timer A0.2
     TIMER_A0->CCR[2] = 17143;                     // toggle flag
     TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle
                     TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4
