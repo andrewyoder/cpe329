@@ -1,0 +1,161 @@
+//*****************************************************************************
+//
+// CPE 329-11
+// Spring 2017
+// Final Project - Visual Equalizer
+//
+// June 8, 2017
+//
+// Andrew Yoder
+// Carlos Hernandez
+//
+//****************************************************************************
+
+
+#include "msp.h"
+
+void pins_init(void);
+void timers_init(void);
+void pins_init(void);
+void somi_init(void);
+
+int bands[7];               // stores frequency band values
+unsigned int curBand = 6;   // integer representing band being updated
+unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
+
+
+void main(void) {
+
+    WDTCTL = WDTPW | WDTHOLD;           // Stop watchdog timer
+
+
+   /* DCO setup */
+    CS->KEY = CS_KEY_VAL;
+    CS->CTL0 = 0;
+    CS->CTL0 = CS_CTL0_DCORSEL_4;   // DCO = 24 MHz
+    CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3;
+    CS->KEY = 0;
+
+
+   /* PWM OUTPUT PINS */
+    // Pins for TA0.4, 160kHz clock (P2.7)
+    P2->DIR |= BIT7;
+    P2->SEL1 &= ~BIT7;
+    P2->SEL0 |= BIT7;
+
+    // Pins for TA2.1, 700 Hz clock (P5.6)
+    P5->DIR |= BIT6;
+    P5->SEL1 &= ~BIT6;
+    P5->SEL0 |= BIT6;
+
+    timers_init();
+
+
+   /* ADC and interrupts configuration */
+    // Enable global interrupt
+    __enable_irq();
+
+    // Sampling time, S&H=4, ADC14 on
+    ADC14->CTL0 = ADC14_CTL0_SHT0_0 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_MSC | ADC14_CTL0_CONSEQ_2;
+    ADC14->CTL1 = ADC14_CTL1_RES_2;         // Use sampling timer, 12-bit conversion results
+
+    ADC14->MCTL[0] |= ADC14_MCTLN_INCH_15;  // A15 ADC input select; Vref=AVCC
+    ADC14->IER0 |= ADC14_IER0_IE0;          // Enable ADC conv complete interrupt
+
+    SCB->SCR &= ~SCB_SCR_SLEEPONEXIT_Msk;   // Wake up on exit from ISR
+
+    // Start sampling/conversion
+    ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
+
+    // Enable ADC interrupt in NVIC module
+    NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
+    NVIC->ISER[0] = 1 << ((TA2_0_IRQn) & 31);
+
+
+    pins_init();
+    somi_init();
+
+
+    while(1) {
+
+    }
+}
+
+
+void ADC14_IRQHandler(void) {
+    if (newMeas)
+    {
+        bands[curBand] = ADC14->MEM[0] / 683;
+        curBand++;
+        if (curBand == 7) {
+            curBand = 0;
+        }
+        newMeas = 0;
+    }
+}
+
+void timers_init(void) {
+    // PWM timer 160 kHz clock, Timer A0.4 (P2.7)
+    TIMER_A0->CCR[0] = 150;
+    TIMER_A0->CCR[4] = 75;                        // toggle flag
+    TIMER_A0->CCTL[4] = 0xE0;
+    TIMER_A0->CTL = 0x0214;
+
+    // PWM timer 700 Hz strobe, Timer A2.1 (P5.6)
+    TIMER_A2->CCR[0] = 34286;
+    TIMER_A2->CCR[1] = 17143;                        // toggle flag
+    TIMER_A2->CCTL[1] = 0xE0;
+    TIMER_A2->CTL = 0x0214;
+}
+
+/* WE NEED TO TEST THIS FUNCTION */
+void somi_init(void) {
+    EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SWRST;   // Put eUSCI state machine in reset
+
+    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_SWRST |   // Remain eUSCI state machine in reset
+                      EUSCI_B_CTLW0_MST   |   // Set as SPI master
+                      EUSCI_B_CTLW0_SYNC  |   // Set as synchronous mode
+                      EUSCI_B_CTLW0_CKPL  |   // Set clock polarity high
+                      EUSCI_B_CTLW0_MSB;      // MSB first
+
+    EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SSEL__SMCLK; // SMCLK
+    EUSCI_B0->BRW = 0x01;                         // divide by 16, clock = fBRCLK/(UCBRx)
+    EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST;      // Initialize USCI state machine, SPI
+                                                  // now waiting for something to
+                                                  // be placed in TXBUF
+
+    EUSCI_B0->IFG |= EUSCI_B_IFG_TXIFG;  // Clear TXIFG flag
+}
+
+void pins_init(void) {
+
+   /* equalizer initialization */
+    // rst from P2.6
+    P2->DIR |= BIT6;
+
+//    // vref from P5.6
+//    P5->SEL1 |= BIT6;
+//    P5->SEL0 |= BIT6;
+
+    // analog from equalizer to P6.0
+    P6->DIR &= ~BIT0;
+    P6->SEL1 |= BIT0;
+    P6->SEL0 |= BIT0;
+
+   /* LCD initialization */
+    // lcd_sce from P5.0
+    P5->DIR |= BIT0;
+    P5->OUT |= BIT0;   // active low, so set
+
+    // lcd_rst from P2.4
+    P2->DIR |= BIT4;
+
+    // lcd_dc from P5.2
+    P5->DIR |= BIT2;
+    P5->OUT &= ~BIT2;   // command low, data high
+
+    // SIMO from SOMI, P1.7
+    // direction controlled by eUSCI_B0 module
+    P1->SEL1 &= ~BIT7;
+    P1->SEL0 |= BIT7;
+}
