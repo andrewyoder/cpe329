@@ -84,7 +84,7 @@ void send_lcd(void)
     EUSCI_B0->TXBUF = 0x80;    //most left x block/column
     P5->OUT |= BIT2; //data on
 
-    
+
     for (i = 0; i < 7; i++) {             // 7 freq bands
         for (j = 0; j < 6; j++) {         // 6 Y rows
             for (k = 0; k < 12; k++) {    // 12 pixels wide
@@ -99,7 +99,7 @@ void send_lcd(void)
         // return to top row
         // make sure at i*12 column
     }
-    
+
 
     P5->OUT |= BIT0; //end
 
@@ -156,17 +156,18 @@ void adc_init(void) {
 
 void timers_init(void) {
     // Timer for LCD, equalizer clk 160 kHz, Timer A0.4
+    TIMER_A0->CCR[0] = 150-1;
     TIMER_A0->CCR[4] = 75;                        // toggle flag
-    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle
-                    TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4;
-
-    // Timer for strobe, Timer A0.2
-    TIMER_A0->CCR[2] = 17143;                     // toggle flag
-    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle, clr
                     TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4
-                    
-                 
-                 ;
+                    ~TIMER_A_CCTLN_CAP | TIMER_A_CTL_CLR;
+
+    // Timer for strobe, Timer A2.4
+    TIMER_A2->CCR[0] = 17143-1;
+    TIMER_A2->CCR[4] = 17143/2;                   // toggle flag
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle, clear
+                    TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4
+                    ~TIMER_A_CCTLN_CAP | TIMER_A_CTL_CLR;
 }
 
 
@@ -223,10 +224,10 @@ void equalizer_init(void) {
     P6->SEL1 |= BIT0;
     P6->SEL0 |= BIT0;
 
-    // strobe from TA0.2, P2.5
-    P2->DIR |= BIT5;
-    P2->SEL1 &= ~BIT5;
-    P2->SEL0 &= ~BIT5;
+    // strobe from TA2.4, P6.7
+    P6->DIR |= BIT7;
+    P6->SEL1 &= ~BIT7;
+    P6->SEL0 |= BIT7;
 }
 
 void lcd_init(void) {
