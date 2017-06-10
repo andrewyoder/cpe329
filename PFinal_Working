@@ -50,13 +50,23 @@ void main(void) {
     P5->SEL1 &= ~BIT6;
     P5->SEL0 |= BIT6;
 
+    // set P1.6 to interrupt on strobe falling edge
+    P1->DIR &= ~BIT6;
+    P1->IES |= BIT6;   // interrupt on falling edge
+    P1->IFG = 0;
+    P1->IE |= BIT6;    // interrupt enable for strobe
+
+    //test
+    P6->DIR |= BIT6;
+    P6->SEL1 &= ~BIT6;
+    P6->SEL0 &= ~BIT6;
+    P6->OUT &= ~BIT6;
+
+
     timers_init();
 
 
    /* ADC and interrupts configuration */
-    // Enable global interrupt
-    __enable_irq();
-
     // Sampling time, S&H=4, ADC14 on
     ADC14->CTL0 = ADC14_CTL0_SHT0_0 | ADC14_CTL0_SHP | ADC14_CTL0_ON | ADC14_CTL0_MSC | ADC14_CTL0_CONSEQ_2;
     ADC14->CTL1 = ADC14_CTL1_RES_2;         // Use sampling timer, 12-bit conversion results
@@ -71,6 +81,10 @@ void main(void) {
 
     // Enable ADC interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
+    NVIC->ISER[0] = 1 << ((PORT1_IRQn) & 31);
+
+    // Enable global interrupt
+    __enable_irq();
 
 
    /* initialize pins and components */
@@ -84,7 +98,7 @@ void main(void) {
 
     while(1) {
         if (curBand == 0) {
-            send_lcd();
+            lcd_write();
         }
     }
 }
@@ -93,22 +107,29 @@ void main(void) {
 void ADC14_IRQHandler(void) {
     if (newMeas)
     {
+        P6->OUT |= BIT6;  //testing
         bands[curBand] = ADC14->MEM[0] / 683;
         curBand++;
         if (curBand == 7) {
             curBand = 0;
         }
         newMeas = 0;
+        P6->OUT &= ~BIT6; //testing
     }
+}
+
+void PORT1_IRQHandler(void) {
+    P1->IFG &= ~BIT6;     // disable interrupt flag
+    newMeas = 1;          // new measurement for ADC
 }
 
 void lcd_write(void) {
     P5->OUT |= BIT2;       // dc high for data
     P5->OUT &= ~BIT0;      // sce low; begin
 
-    for (i = 0; i < 6; i++) {                // 7 freq bands
-        for (j = 0; j < 7; j++) {         // 6 Y rows
-            for (k = 0; k < 12; k++) {    // 12 pixels wide
+    for (i = 0; i < 6; i++) {             // 6 Y rows
+        for (j = 0; j < 7; j++) {         // 7 freq bands
+            for (k = 0; k < 12; k++) {    // write 12 pixels per band
                 if (bands[j] > (6 - i)) {
                     while (!(EUSCI_B0->IFG & 0x02));
                     EUSCI_B0->TXBUF = 0x00;
@@ -172,7 +193,7 @@ void lcd_init(void) {
     while (!(EUSCI_B0->IFG & 0x02));
     EUSCI_B0->TXBUF = 0x90;    //set Vop
     while (!(EUSCI_B0->IFG & 0x02));
-    EUSCI_B0->TXBUF = 0x22;    //normal inst with vertical addressing
+    EUSCI_B0->TXBUF = 0x20;    //normal inst with horizontal addressing
     while (!(EUSCI_B0->IFG & 0x02));
     EUSCI_B0->TXBUF = 0x0C;    //normal display mode
     while (!(EUSCI_B0->IFG & 0x02));
