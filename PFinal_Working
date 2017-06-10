@@ -23,6 +23,7 @@ void lcd_write(void);
 int bands[7];               // stores frequency band values
 unsigned int curBand = 6;   // integer representing band being updated
 unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
+unsigned int i, j, k;
 
 
 void main(void) {
@@ -70,15 +71,21 @@ void main(void) {
 
     // Enable ADC interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
-    NVIC->ISER[0] = 1 << ((TA2_0_IRQn) & 31);
 
 
+   /* initialize pins and components */
     pins_init();
     lcd_init();
 
+   /* reset equalizer, (eq_rst on then off) */
+    P2->OUT |= BIT6;
+    P2->OUT &= ~BIT6;
+
 
     while(1) {
-
+        if (curBand == 0) {
+            send_lcd();
+        }
     }
 }
 
