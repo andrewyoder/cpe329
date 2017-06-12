@@ -60,14 +60,6 @@ void main(void) {
     P1->IFG = 0;
     P1->IE |= BIT6;    // interrupt enable for strobe
     
-    
-    P1DIR &= ~BIT1;
-P1REN |= BIT1; // resistor enable
-P1OUT |= BIT1; // pull-up 
-P1IES |= BIT1; // falling edge trigger
-P1IFG &= ~BIT1; // clear interrupt flag
-P1IE |= BIT1; // enable
-    
 
     //test
     P6->DIR |= BIT6;
