@@ -62,9 +62,9 @@ void main(void) {
     
 
     //test
-    P6->DIR |= BIT6;
     P6->SEL1 &= ~BIT6;
     P6->SEL0 &= ~BIT6;
+    P6->DIR |= BIT6;
     P6->OUT &= ~BIT6;
 
 
