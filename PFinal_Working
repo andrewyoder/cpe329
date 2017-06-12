@@ -51,10 +51,23 @@ void main(void) {
     P5->SEL0 |= BIT6;
 
     // set P1.6 to interrupt on strobe falling edge
+    P1->SEL1 &= ~BIT6;
+    P1->SEL0 &= ~BIT6;
     P1->DIR &= ~BIT6;
+    P1->REN |= BIT6;
+    P1->OUT |= BIT6;
     P1->IES |= BIT6;   // interrupt on falling edge
     P1->IFG = 0;
     P1->IE |= BIT6;    // interrupt enable for strobe
+    
+    
+    P1DIR &= ~BIT1;
+P1REN |= BIT1; // resistor enable
+P1OUT |= BIT1; // pull-up 
+P1IES |= BIT1; // falling edge trigger
+P1IFG &= ~BIT1; // clear interrupt flag
+P1IE |= BIT1; // enable
+    
 
     //test
     P6->DIR |= BIT6;
@@ -187,7 +200,7 @@ void lcd_init(void) {
     P5->OUT &= ~BIT2;      // dc low for commands
     P5->OUT &= ~BIT0;      // sce low
 
-   /* WHERE DID THESE COME FROM / WHAT DO THEY MEAN */                                            // UPDATE/CHECK THIS
+   /* WHERE DID THESE COME FROM / WHAT DO THEY MEAN from instructions data sheet*/                  // UPDATE/CHECK THIS
     while (!(EUSCI_B0->IFG & 0x02));
     EUSCI_B0->TXBUF = 0x21;    //extended inst
     while (!(EUSCI_B0->IFG & 0x02));
