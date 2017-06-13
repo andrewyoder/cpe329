@@ -51,21 +51,21 @@ void main(void) {
     P5->SEL0 |= BIT6;
 
     // set P1.6 to interrupt on strobe falling edge
-    P1->SEL1 &= ~BIT6;
-    P1->SEL0 &= ~BIT6;
-    P1->DIR &= ~BIT6;
-    P1->REN |= BIT6;
-    P1->OUT |= BIT6;
-    P1->IES |= BIT6;   // interrupt on falling edge
-    P1->IFG = 0;
-    P1->IE |= BIT6;    // interrupt enable for strobe
-    
+    P3->SEL1 &= ~BIT6;
+    P3->SEL0 &= ~BIT6;
+    P3->DIR &= ~BIT6;
+    P3->REN |= BIT6;
+    P3->OUT |= BIT6;
+    P3->IES |= BIT6;   // interrupt on falling edge
+    P3->IFG = 0;
+    P3->IE |= BIT6;    // interrupt enable for strobe
+
 
     //test
-    P6->SEL1 &= ~BIT6;
-    P6->SEL0 &= ~BIT6;
-    P6->DIR |= BIT6;
-    P6->OUT &= ~BIT6;
+    P4->SEL1 &= ~BIT6;
+    P4->SEL0 &= ~BIT6;
+    P4->DIR |= BIT6;
+    P4->OUT &= ~BIT6;
 
 
     timers_init();
@@ -86,15 +86,15 @@ void main(void) {
 
     // Enable ADC interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
-    NVIC->ISER[0] = 1 << ((PORT1_IRQn) & 31);
-
-    // Enable global interrupt
-    __enable_irq();
+    NVIC->ISER[1] = 1 << ((PORT3_IRQn) & 31);
 
 
    /* initialize pins and components */
     pins_init();
     lcd_init();
+
+    // Enable global interrupt
+    __enable_irq();
 
    /* reset equalizer, (eq_rst on then off) */
     P2->OUT |= BIT6;
@@ -112,19 +112,19 @@ void main(void) {
 void ADC14_IRQHandler(void) {
     if (newMeas)
     {
-        P6->OUT |= BIT6;  //testing
+        P4->OUT |= BIT6;  //testing
         bands[curBand] = ADC14->MEM[0] / 683;
         curBand++;
         if (curBand == 7) {
             curBand = 0;
         }
         newMeas = 0;
-        P6->OUT &= ~BIT6; //testing
+        P4->OUT &= ~BIT6; //testing
     }
 }
 
-void PORT1_IRQHandler(void) {
-    P1->IFG &= ~BIT6;     // disable interrupt flag
+void PORT3_IRQHandler(void) {
+    P3->IFG &= ~BIT6;     // disable interrupt flag
     newMeas = 1;          // new measurement for ADC
 }
 
