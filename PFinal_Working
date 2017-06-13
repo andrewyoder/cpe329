@@ -21,9 +21,10 @@ void lcd_init(void);
 void lcd_write(void);
 
 int bands[7];               // stores frequency band values
-unsigned int curBand = 6;   // integer representing band being updated
+unsigned int curBand = 0;   // integer representing band being updated
 unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
 unsigned int i, j, k;
+int start;
 
 
 void main(void) {
@@ -93,12 +94,11 @@ void main(void) {
     pins_init();
     lcd_init();
 
+   /* reset equalizer, (eq_rst on then off) */
+    start = 1;
+
     // Enable global interrupt
     __enable_irq();
-
-   /* reset equalizer, (eq_rst on then off) */
-    P2->OUT |= BIT6;
-    P2->OUT &= ~BIT6;
 
 
     while(1) {
@@ -125,7 +125,24 @@ void ADC14_IRQHandler(void) {
 
 void PORT3_IRQHandler(void) {
     P3->IFG &= ~BIT6;     // disable interrupt flag
-    newMeas = 1;          // new measurement for ADC
+
+    if (start == 0)
+    {
+        newMeas = 1;          // new measurement for ADC
+    }
+    else if(start == 1) //starting initial reset
+    {
+        P2->OUT |= BIT6;
+        start = 2;
+        //P4->OUT |= BIT6;  //testing
+    }
+    else if(start == 2) //finishing initial reset
+    {
+        P2->OUT &= ~BIT6;
+        start = 0;
+        curBand = 0;
+        //P4->OUT &= ~BIT6;  //testing
+    }
 }
 
 void lcd_write(void) {
