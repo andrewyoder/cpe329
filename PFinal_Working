@@ -192,7 +192,7 @@ void lcd_init(void) {
     P5->OUT &= ~BIT2;      // dc low for commands
     P5->OUT &= ~BIT0;      // sce low
 
-   /* WHERE DID THESE COME FROM / WHAT DO THEY MEAN from instructions data sheet*/                  // UPDATE/CHECK THIS
+   /* WHERE DID THESE COME FROM / WHAT DO THEY MEAN - from instructions data sheet*/                  // UPDATE/CHECK THIS
     while (!(EUSCI_B0->IFG & 0x02));
     EUSCI_B0->TXBUF = 0x21;    //extended inst
     while (!(EUSCI_B0->IFG & 0x02));
