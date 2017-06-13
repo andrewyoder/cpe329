@@ -12,27 +12,21 @@
 //****************************************************************************
 
 
-// NEED TO WRITE TIMER FOR SCLK (160 kHz)
-// AND ALSO SETS newMeas = 1 
-
-
 #include "msp.h"
-
 
 void somi_init(void);
 void equalizer_init(void);
 void lcd_init(void);
+void adc_init(void);
+void timers_init(void);
+void send_lcd(void);
 
-
-unsigned int band_63;     // value for 63 Hz band
-unsigned int band_160;    // value for 160 Hz band
-unsigned int band_400;    // value for 400 Hz band
-unsigned int band_1k;     // value for 1 kHz band
-unsigned int band_2k;     // value for 2.5 kHz band
-unsigned int band_6k;     // value for 6.25 kHz band
-unsigned int band_16k;    // value for 16 kHz band
-unsigned int curBand = 0;   // integer representing band being updated
+int bands[7];               // stores frequency band values
+unsigned int curBand = 6;   // integer representing band being updated
 unsigned int newMeas = 0;   // Boolean updated when equalizer has new output
+
+unsigned int sclkH = 0;     // boolean for SCLK high
+unsigned int strobeH = 0;   // boolean for stobe high
 
 
 void main(void)
@@ -40,15 +34,89 @@ void main(void)
 
     WDTCTL = WDTPW | WDTHOLD;           // Stop watchdog timer
 
+    CS->KEY = CS_KEY_VAL;
+    CS->CTL0 = 0;
     CS->CTL0 = CS_CTL0_DCORSEL_4;   // DCO = 24 MHz
+    CS->CTL1 = CS_CTL1_SELA_2 | CS_CTL1_SELS_3 | CS_CTL1_SELM_3;
+    CS->KEY = 0;
 
-    // Timer for 160 kHz SPI CLK to LCD
-    TIMER_A2->CCTL[0] = TIMER_A_CCTLN_CCIE; // TACCR0 interrupt enabled
-    TIMER_A2->CCR[0] = 75;  // set/reset every 75 clock cycles for 160 kHz CLK
+    somi_init();
+    equalizer_init();
+    lcd_init();
+    adc_init();
+    timers_init();
 
     // Enable global interrupt
     __enable_irq();
 
+
+    while(1)
+    {
+//        if (curBand == 0) {
+//            send_lcd();
+//        }
+    }
+}
+
+void send_lcd(void)
+{
+    int i, j, k;
+
+    P5->OUT &= ~BIT0; //start
+
+    //instruction
+    P5->OUT &= ~BIT2; //instruction on
+    while (!(EUSCI_B0->IFG & 0x02));
+    EUSCI_B0->TXBUF = 0x21;    //extended inst
+    while (!(EUSCI_B0->IFG & 0x02));
+    EUSCI_B0->TXBUF = 0x90;    //set Vop
+    while (!(EUSCI_B0->IFG & 0x02));
+    EUSCI_B0->TXBUF = 0x22;    //normal inst with vertical addressing
+    while (!(EUSCI_B0->IFG & 0x02));
+    EUSCI_B0->TXBUF = 0x0C;    //normal display mode
+    while (!(EUSCI_B0->IFG & 0x02));
+    EUSCI_B0->TXBUF = 0x40;    //bottom Y block
+    while (!(EUSCI_B0->IFG & 0x02));
+    EUSCI_B0->TXBUF = 0x80;    //most left x block/column
+    P5->OUT |= BIT2; //data on
+
+
+    for (i = 0; i < 7; i++) {             // 7 freq bands
+        for (j = 0; j < 6; j++) {         // 6 Y rows
+            for (k = 0; k < 12; k++) {    // 12 pixels wide
+                if (bands[i] > (6 - j)) {
+                    // write 0x00
+                } else {
+                    // write 0xFF
+                }
+            }
+            // go to next row
+        }
+        // return to top row
+        // make sure at i*12 column
+    }
+
+
+    P5->OUT |= BIT0; //end
+
+}
+
+
+// ADC14 interrupt service routine
+void ADC14_IRQHandler(void) {
+    if (newMeas)
+    {
+        bands[curBand] = ADC14->MEM[0] / 683;
+        curBand++;
+        if (curBand == 7) {
+            curBand = 0;
+        }
+        newMeas = 0;
+    }
+}
+
+
+void adc_init(void) {
     // Enable ADC interrupt in NVIC module
     NVIC->ISER[0] = 1 << ((ADC14_IRQn) & 31);
 
@@ -63,35 +131,66 @@ void main(void)
 
     // Start sampling/conversion
     ADC14->CTL0 |= ADC14_CTL0_ENC | ADC14_CTL0_SC;
+}
 
 
-    somi_init();
-    equalizer_init();
-    lcd_init();
+void timers_init(void) {
+    // Timer for LCD, equalizer clk 160 kHz, Timer A0.4
+    TIMER_A0->CCR[0] = 150-1;
+    TIMER_A0->CCR[4] = 75;                        // toggle flag
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle, clear, output
+                    TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4
+                    ~TIMER_A_CCTLN_CAP | TIMER_A_CTL_CLR | TIMER_A_CCTLN_OUT;
 
+    // Timer for strobe, Timer A2.4
+    TIMER_A2->CCR[0] = 17143-1;
+    TIMER_A2->CCR[4] = 17143/2;                   // toggle flag
+    TIMER_A0->CTL = TIMER_A_CTL_SSEL__SMCLK |     // SMCLK, up mode, toggle, clear, output
+                    TIMER_A_CTL_MC__UP | TIMER_A_CCTLN_OUTMOD_4
+                    ~TIMER_A_CCTLN_CAP | TIMER_A_CTL_CLR | TIMER_A_CCTLN_OUT;
+                    
+    // Enable strobe interrupt in NVIC module to udpate newMeas
+    NVIC->ISER[0] = 1 << ((strobe_IRQn) & 31);
 }
 
 
 void somi_init(void) {
 
-    // disable for configuration
-    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_SWRST;
+//    // disable for configuration
+//    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_SWRST;
+//
+//    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_STEM |       // STE (P1.4) is enable signal
+//                      EUSCI_B_CTLW0_SYNC |       // synchronous mode for SPI
+//                      EUSCI_B_CTLW0_UCSSEL_2 |   // SMCLK
+//                      EUSCI_B_CTLW0_MST |        // master mode
+//                      EUSCI_B_CTLW0_SEVENBIT |   // 7-bit characters
+//                      EUSCI_B_CTLW0_MSB |        // MSB sent first
+//                      EUSCI_B_CTLW0_MODE_2;      // 4-pin SPI with STE low active
+//
+//    // enable to receive/transmit data
+//    EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST;
 
-    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_STEM |       // STE (P1.4) is enable signal
-                      EUSCI_B_CTLW0_SYNC |       // synchronous mode for SPI
-                      EUSCI_B_CTLW0_UCSSEL_2 |   // SMCLK
-                      EUSCI_B_CTLW0_MST |        // master mode
-                      EUSCI_B_CTLW0_SEVENBIT |   // 7-bit characters
-                      EUSCI_B_CTLW0_MSB |        // MSB sent first
-                      EUSCI_B_CTLW0_MODE_2;      // 4-pin SPI with STE low active
 
-    // enable to receive/transmit data
-    EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST;
+    EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SWRST;   // Put eUSCI state machine in reset
+
+    EUSCI_B0->CTLW0 = EUSCI_B_CTLW0_SWRST |   // Remain eUSCI state machine in reset
+                      EUSCI_B_CTLW0_MST   |   // Set as SPI master
+                      EUSCI_B_CTLW0_SYNC  |   // Set as synchronous mode
+                      EUSCI_B_CTLW0_CKPL  |   // Set clock polarity high
+                      EUSCI_B_CTLW0_MSB;      // MSB first
+
+    EUSCI_B0->CTLW0 |= EUSCI_B_CTLW0_SSEL__SMCLK; // SMCLK
+    EUSCI_B0->BRW = 0x01;                         // divide by 16, clock = fBRCLK/(UCBRx)
+    EUSCI_B0->CTLW0 &= ~EUSCI_B_CTLW0_SWRST;      // Initialize USCI state machine, SPI
+                                                  // now waiting for something to
+                                                  // be placed in TXBUF
+
+    EUSCI_B0->IFG |= EUSCI_B_IFG_TXIFG;  // Clear TXIFG flag
 }
 
 void equalizer_init(void) {
 
-    // MCLK from P4.3
+    // CLK from P2.7 (160 kHz)
     P4->DIR |= BIT3;
     P4->SEL1 &= ~BIT3;
     P4->SEL0 |= BIT3;
@@ -108,10 +207,10 @@ void equalizer_init(void) {
     P6->SEL1 |= BIT0;
     P6->SEL0 |= BIT0;
 
-    // strobe from TA0.2, P2.5
-    P2->DIR |= BIT5;
-    P2->SEL1 &= ~BIT5;
-    P2->SEL0 |= BIT5;
+    // strobe from TA2.4, P6.7
+    P6->DIR |= BIT7;
+    P6->SEL1 &= ~BIT7;
+    P6->SEL0 |= BIT7;
 }
 
 void lcd_init(void) {
@@ -133,60 +232,13 @@ void lcd_init(void) {
     P5->SEL1 &= ~BIT2;
     P5->SEL0 &= ~BIT2;
 
-    // sclk from P1.5
-    // direction controlled by eUSCI_B0 module
-    P1->SEL1 &= ~BIT5;
-    P1->SEL0 |= BIT5;
+    // sclk from P2.7 (160 kHz)
+    P2->DIR |= BIT7;
+    P2->SEL1 &= ~BIT7;
+    P2->SEL0 |= BIT7;
 
     // SIMO from SOMI, P1.7
     // direction controlled by eUSCI_B0 module
     P1->SEL1 &= ~BIT7;
     P1->SEL0 |= BIT7;
-}
-
-
-
-
-// ADC14 interrupt service routine
-void ADC14_IRQHandler(void) {
-
-    if (newMeas)
-    {
-        if (curBand == 0)
-        {
-            band_63 = ADC14->MEM[0];
-            curBand++;
-        }
-        else if (curBand == 1)
-        {
-            band_160 = ADC14->MEM[0];
-            curBand++;
-        }
-        else if (curBand == 2)
-        {
-            band_400 = ADC14->MEM[0];
-            curBand++;
-        }
-        else if (curBand == 3)
-        {
-            band_1k = ADC14->MEM[0];
-            curBand++;
-        }
-        else if (curBand == 4)
-        {
-            band_2k = ADC14->MEM[0];
-            curBand++;
-        }
-        else if (curBand == 5)
-        {
-            band_6k = ADC14->MEM[0];
-            curBand++;
-        }
-        else
-        {
-            band_16k = ADC14->MEM[0];
-            curBand = 0;
-        }
-        newMeas = 0;
-    }
 }
