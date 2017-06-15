@@ -667,15 +667,16 @@ void terminal_init(void)
 
 void UART0_init(void)
 {
+    EUSCI_A0->CTLW0 = 0;        // reset
     EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SWRST;
-    EUSCI_A0->MCTLW &= ~EUSCI_A_MCTLW_OS16;
-    EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SSEL__SMCLK;
-    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_PEN;
-    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SEVENBIT;
-    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SPB;
+
+    EUSCI_A0->CTLW0 |= EUSCI_A_CTLW0_SSEL__SMCLK | EUSCI_A_CTLW0_MSB;   // use SMCLK and MSB first
+
     EUSCI_A0->BRW = 104;        // baud rate 115 200 bps (24 000 000 / 115 200)
+
     P1->SEL0 |= 0x0C;
     P1->SEL1 &= ~0x0C;
-    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST;
+
+    EUSCI_A0->CTLW0 &= ~EUSCI_A_CTLW0_SWRST;  // disable reset
 }
 
